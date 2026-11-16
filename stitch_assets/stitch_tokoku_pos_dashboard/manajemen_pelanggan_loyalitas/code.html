@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+
+<html lang="id"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-primary-container":"#582200","on-secondary-fixed-variant":"#3f465c","on-error-container":"#93000a","surface-variant":"#d3e4fe","surface-container-highest":"#d3e4fe","on-surface-variant":"#584237","surface-dim":"#cbdbf5","surface-container-low":"#eff4ff","on-error":"#ffffff","primary-fixed-dim":"#ffb690","on-secondary-fixed":"#131b2e","on-tertiary-fixed-variant":"#005236","tertiary":"#006c49","error":"#ba1a1a","on-background":"#0b1c30","on-primary-fixed":"#341100","inverse-on-surface":"#eaf1ff","inverse-surface":"#213145","secondary-fixed-dim":"#bec6e0","secondary":"#565e74","error-container":"#ffdad6","on-tertiary-container":"#003b26","background":"#f8f9ff","on-surface":"#0b1c30","inverse-primary":"#ffb690","on-tertiary-fixed":"#002113","tertiary-fixed":"#6ffbbe","primary-container":"#f97316","surface-container":"#e5eeff","outline":"#8c7164","on-tertiary":"#ffffff","tertiary-container":"#00b07a","surface":"#f8f9ff","surface-tint":"#9d4300","on-primary":"#ffffff","on-secondary-container":"#5c647a","tertiary-fixed-dim":"#4edea3","primary-fixed":"#ffdbca","secondary-fixed":"#dae2fd","primary":"#9d4300","surface-container-lowest":"#ffffff","surface-container-high":"#dce9ff","surface-bright":"#f8f9ff","on-secondary":"#ffffff","outline-variant":"#e0c0b1","on-primary-fixed-variant":"#783200","secondary-container":"#dae2fd"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{"space-sm":"0.5rem","space-md":"1rem",gutter:"1rem",margin:"1.5rem","space-lg":"1.5rem","margin-mobile":"1rem","gutter-mobile":"0.75rem","space-xs":"0.25rem","space-xl":"2rem"},fontFamily:{"body-sm":["Inter"],"numeric-table":["Inter"],"title-md":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"headline-lg-mobile":["Plus Jakarta Sans"],"headline-xl-mobile":["Plus Jakarta Sans"],"body-lg":["Inter"],"body-md":["Inter"],"headline-md":["Plus Jakarta Sans"],"label-lg":["Inter"],"headline-lg":["Plus Jakarta Sans"],"label-md":["Inter"],"headline-sm":["Plus Jakarta Sans"],"numeric-display":["Inter"],"label-sm":["Inter"]},fontSize:{"body-sm":["12px",{lineHeight:"16px",fontWeight:"400"}],"numeric-table":["13px",{lineHeight:"18px",fontWeight:"500"}],"title-md":["16px",{lineHeight:"22px",fontWeight:"600"}],"headline-xl":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],"headline-lg-mobile":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],"headline-xl-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.01em",fontWeight:"700"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],"headline-md":["22px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],"label-lg":["14px",{lineHeight:"20px",fontWeight:"600"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-md":["12px",{lineHeight:"16px",letterSpacing:"0.02em",fontWeight:"600"}],"headline-sm":["18px",{lineHeight:"24px",fontWeight:"600"}],"numeric-display":["32px",{lineHeight:"40px",letterSpacing:"-0.02em",fontWeight:"700"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"600"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-[250px] bg-surface-container-lowest border-r border-outline-variant/40 z-50 flex flex-col justify-between select-none shadow-[0_1px_8px_rgba(0,0,0,0.02)]"><div class="flex flex-col"><div class="px-5 pt-5 pb-4 border-b border-outline-variant/30 flex items-center justify-between"><div class="flex items-center gap-2.5"><img alt="TokoKu POS Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/ALJJyrAZUad4TRcq2OxeKBWuZNRmfuRQ7Gruetxxc6g8s9VX0T3avQLczkDnFc6KU8f6XMKH_Yr89s8NLZ57CWee3dOn5bmN1X3Ww4iwHnrMlEqaXuBCbz0KuHUk34BfXGZu1NYK83UQ5zvxd91TvK3L1wppIQKOEAVYtIfjCXR_VYCXPG37wIlDVpR40w01NuGpdrmtvbmmo8OEQD0JYpjX02g6Bz8YNUXzXOkEKZrJeMwf"/><div class="flex flex-col leading-none"><span class="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">TokoKu</span><span class="font-label-sm text-label-sm text-primary tracking-wider uppercase font-semibold mt-0.5">POS Retail</span></div></div><span class="font-label-sm text-label-sm bg-primary-fixed text-on-primary-fixed px-1.5 py-0.5 rounded">PRO</span></div><div class="px-4 py-3 mx-3 my-3 bg-surface-container-low rounded-lg border border-outline-variant/20 flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span><span class="font-label-md text-label-md text-on-surface font-medium truncate">Cabang Ponorogo</span></div><span class="font-label-sm text-label-sm text-tertiary font-semibold">Online</span></div><nav class="flex flex-col gap-1 px-3 mt-1" data-active-classes="bg-primary-container text-on-primary font-semibold shadow-sm"><a class="flex items-center justify-between px-3 py-2.5 rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="dashboard" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">grid_view</span><span>Dashboard</span></div></a><a class="flex items-center justify-between px-3 py-2.5 rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="kasir-pos" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">point_of_sale</span><span>Kasir / POS</span></div><span class="font-label-sm text-label-sm bg-inverse-surface text-inverse-on-surface px-1.5 py-0.5 rounded font-semibold">Quick</span></a><a aria-current="page" class="flex items-center justify-between px-3 py-2.5 rounded-lg transition-all bg-primary-container text-on-primary font-semibold shadow-sm" data-path="manajemen-pelanggan" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">group</span><span>Manajemen Pelanggan</span></div></a><a class="flex items-center justify-between px-3 py-2.5 rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="laporan-audit-log" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">analytics</span><span>Laporan &amp; Audit Log</span></div></a></nav></div><div class="p-3.5 mx-3 mb-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-tertiary text-[18px]">database</span><span class="font-label-sm text-label-sm text-on-surface-variant">PostgreSQL DB Connected</span></div><span class="material-symbols-outlined text-on-surface-variant text-[16px] hover:text-on-surface cursor-pointer">sync</span></div><div class="flex items-center justify-between pt-1 border-t border-outline-variant/20"><span class="font-label-sm text-label-sm text-on-surface-variant">Sistem POS</span><span class="font-numeric-table text-numeric-table text-on-surface font-semibold">v2.4.0</span></div></div></aside><div class="pl-[250px]"><header class="fixed top-0 left-[250px] right-0 h-16 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/40 z-40 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.03)]"><div class="flex items-center gap-3 w-80"><div class="relative w-full flex items-center"><span class="material-symbols-outlined absolute left-3 text-secondary text-[20px]">search</span><input class="w-full h-10 pl-9 pr-14 bg-surface rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all" placeholder="Cari produk, pelanggan, atau invoice..." type="text"/><kbd class="absolute right-2.5 font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/40">⌘K</kbd></div></div><div class="flex items-center gap-3"><div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface"><span class="material-symbols-outlined text-primary text-[18px]">store</span><span class="font-label-md text-label-md font-medium">Cabang Pusat - Ponorogo</span><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span></div><div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-inverse-surface text-inverse-on-surface"><span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim">terminal</span><span class="font-label-md text-label-md font-semibold">POS Terminal #01</span></div><button class="flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary-container hover:bg-on-primary-fixed-variant text-on-primary font-label-lg text-label-lg font-semibold shadow-sm transition-colors active:scale-95" type="button"><span class="material-symbols-outlined text-[20px]">add</span><span>+ Transaksi Baru</span></button><button aria-label="Notifikasi" class="relative w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span></button><div class="h-8 w-px bg-outline-variant/40 mx-1"></div><div class="flex items-center gap-3 pl-1"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDntJ0naHtW_belqIldBZmT2A6MXKIcnZoJT92mOPRVxWm-2xYUH5_zarCkgu49DjrujuMSZLn_UAge6bECZ00Zfg0PR_E5_-1XT2QIQLw3KpKhKQ-PxLmWerBRQ1y-8TZFbwx4t6vEOpeWcGwcrDQxT3qEwPps9efU4VK2j3rXMQ3nMY1_-LrKR26ekSbjrsVgDRs7zzjBvoIYK6yqgDjeQjclA1cZpoFbFvvAPK0"/><div class="hidden md:flex flex-col leading-tight"><span class="font-label-lg text-label-lg text-on-surface font-semibold">Wulan Sari</span><span class="font-label-sm text-label-sm text-on-surface-variant">Store Manager</span></div></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full p-6 space-y-6">
+<!-- Header Section with Breadcrumb & Quick Action Buttons -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-xl shadow-sm">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Direktori Master Data</span>
+<span class="w-1 h-1 rounded-full bg-secondary-fixed-dim"></span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">CRM v2.4</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Manajemen Pelanggan &amp; Kategori Loyalitas</h1>
+<p class="font-body-md text-body-md text-secondary">Kelola direktori pelanggan, kota domisili, dan klasifikasi tier membership berdasarkan akumulasi belanja.</p>
+</div>
+<!-- Right Header Actions -->
+<div class="flex items-center gap-2.5 self-start md:self-auto">
+<button class="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg text-label-lg transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">upload_file</span>
+<span>Import CSV</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-tertiary hover:bg-on-tertiary-container text-on-tertiary font-label-lg text-label-lg shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span>Export Excel</span>
+</button>
+</div>
+</div>
+<!-- Loyalty Threshold Overview Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Gold Tier Meta -->
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[24px]">workspace_premium</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-on-surface font-bold">Gold Tier</span>
+<span class="font-label-sm text-label-sm text-primary font-semibold bg-primary-fixed/60 px-2 py-0.5 rounded-full">≥ 1 Juta</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Diskon 5% flat + prioritas checkout</span>
+</div>
+</div>
+<span class="font-numeric-display text-headline-md text-on-surface font-bold">4</span>
+</div>
+<!-- Silver Tier Meta -->
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 rounded-lg bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">military_tech</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-on-surface font-bold">Silver Tier</span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold bg-secondary-container px-2 py-0.5 rounded-full">≥ 500rb</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Diskon 2.5% + voucher bulanan</span>
+</div>
+</div>
+<span class="font-numeric-display text-headline-md text-on-surface font-bold">5</span>
+</div>
+<!-- Regular Tier Meta -->
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[24px]">person</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md text-on-surface font-bold">Reguler</span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold bg-surface-variant px-2 py-0.5 rounded-full">&lt; 500rb</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">Point reward dasar (1 pt / 10k)</span>
+</div>
+</div>
+<span class="font-numeric-display text-headline-md text-on-surface font-bold">3</span>
+</div>
+</div>
+<!-- 2-Column Split Layout: Form (4 cols) & Table (8 cols) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- LEFT CARD: Tambah Pelanggan Baru (col-span-4 / ~33%) -->
+<div class="lg:col-span-4 bg-surface-container-lowest rounded-xl p-5 shadow-sm space-y-5">
+<div class="flex items-center justify-between pb-3 bg-surface-container-low -mx-5 -mt-5 p-5 rounded-t-xl">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Tambah Pelanggan Baru</h2>
+<p class="font-body-sm text-body-sm text-secondary">Input data master kontak &amp; domisili</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm bg-surface-container-highest text-on-surface-variant px-2 py-0.5 rounded">Baru</span>
+</div>
+<form class="space-y-4" id="customerForm" onsubmit="event.preventDefault(); alert('Pelanggan berhasil disimpan!');">
+<!-- Input Nama Lengkap -->
+<div class="space-y-1.5">
+<label class="block font-label-md text-label-md text-on-surface font-semibold" for="custName">
+            Nama Lengkap Pelanggan <span class="text-error">*</span>
+</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[18px]">badge</span>
+<input class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface text-on-surface font-body-md text-body-md placeholder:text-secondary/60 focus:bg-surface-container-lowest focus:outline-none shadow-sm" id="custName" placeholder="Contoh: Hendra Kusuma" required="" type="text"/>
+</div>
+</div>
+<!-- Input Nomor WhatsApp / HP -->
+<div class="space-y-1.5">
+<label class="block font-label-md text-label-md text-on-surface font-semibold" for="custPhone">
+            Nomor WhatsApp / HP <span class="text-error">*</span>
+</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[18px]">call</span>
+<input class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface text-on-surface font-body-md text-body-md placeholder:text-secondary/60 focus:bg-surface-container-lowest focus:outline-none shadow-sm" id="custPhone" placeholder="0812-xxxx-xxxx" required="" type="tel"/>
+</div>
+</div>
+<!-- Dropdown Kota Asal -->
+<div class="space-y-1.5">
+<label class="block font-label-md text-label-md text-on-surface font-semibold" for="custCity">
+            Kota Asal Domisili <span class="text-error">*</span>
+</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[18px]">location_on</span>
+<select class="w-full h-10 pl-9 pr-8 rounded-lg bg-surface text-on-surface font-body-md text-body-md appearance-none focus:bg-surface-container-lowest focus:outline-none shadow-sm" id="custCity" required="">
+<option disabled="" selected="" value="">Pilih Kota Cabang / Wilayah</option>
+<option value="Ponorogo">Ponorogo (Cabang Utama)</option>
+<option value="Madiun">Madiun</option>
+<option value="Surabaya">Surabaya</option>
+<option value="Malang">Malang</option>
+<option value="Solo">Solo</option>
+<option value="Magetan">Magetan</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-secondary text-[20px] pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Input Alamat Lengkap -->
+<div class="space-y-1.5">
+<label class="block font-label-md text-label-md text-on-surface font-semibold" for="custAddress">
+            Alamat Lengkap
+          </label>
+<textarea class="w-full p-3 rounded-lg bg-surface text-on-surface font-body-md text-body-md placeholder:text-secondary/60 focus:bg-surface-container-lowest focus:outline-none shadow-sm resize-none" id="custAddress" placeholder="Alamat jalan, kelurahan, kecamatan" rows="3"></textarea>
+</div>
+<!-- Initial Status Toggle -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Status Keanggotaan</span>
+<span class="font-body-sm text-body-sm text-secondary">Aktivasi akun di seluruh POS kasir</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="custStatusToggle" type="checkbox"/>
+<div class="w-11 h-6 bg-secondary-fixed rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-tertiary"></div>
+</label>
+</div>
+<!-- Rule Indicator Callout -->
+<div class="p-3.5 rounded-lg bg-primary-fixed/40 text-on-primary-fixed flex items-start gap-2.5">
+<span class="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">info</span>
+<p class="font-body-sm text-body-sm leading-relaxed text-on-surface">
+<strong class="font-semibold text-primary">Kalkulasi Otomatis:</strong> Kategori loyalitas dihitung realtime berdasarkan akumulasi transaksi checkout (<strong class="font-semibold text-primary">Gold: ≥ 1 Jt</strong>, <strong class="font-semibold text-secondary">Silver: ≥ 500rb</strong>, <strong class="font-semibold text-on-surface">Reguler: &lt; 500rb</strong>).
+          </p>
+</div>
+<!-- Action Buttons -->
+<div class="pt-2 flex flex-col gap-2">
+<button class="w-full py-2.5 rounded-lg bg-primary-container hover:bg-on-primary-fixed-variant text-on-primary font-label-lg text-label-lg font-semibold shadow-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2" type="submit">
+<span class="material-symbols-outlined text-[20px]">save</span>
+<span>Simpan Pelanggan</span>
+</button>
+<button class="w-full py-2 rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" type="reset">
+            Reset Form
+          </button>
+</div>
+</form>
+</div>
+<!-- RIGHT CARD: Data Pelanggan & Kategori Loyalitas (col-span-8 / ~67%) -->
+<div class="lg:col-span-8 bg-surface-container-lowest rounded-xl shadow-sm flex flex-col overflow-hidden">
+<!-- Filter, Search & Tab Bar -->
+<div class="p-4 bg-surface-container-low space-y-3.5">
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+<!-- Search Input -->
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[20px]">search</span>
+<input class="w-full h-10 pl-9 pr-4 rounded-lg bg-surface-container-lowest text-on-surface font-body-sm text-body-sm placeholder:text-secondary/70 focus:outline-none shadow-sm" id="searchCustomerInput" placeholder="Cari nama atau ID pelanggan..." type="text"/>
+</div>
+<!-- City Dropdown Filter -->
+<div class="relative w-full sm:w-48">
+<select class="w-full h-10 pl-3 pr-8 rounded-lg bg-surface-container-lowest text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none shadow-sm" id="filterCitySelect">
+<option value="ALL">Semua Kota</option>
+<option value="Ponorogo">Ponorogo</option>
+<option value="Surabaya">Surabaya</option>
+<option value="Malang">Malang</option>
+<option value="Madiun">Madiun</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-secondary text-[20px] pointer-events-none">filter_alt</span>
+</div>
+</div>
+<!-- Loyalty Filter Pills & Active Summary -->
+<div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+<div class="flex items-center gap-1.5" id="tierFilterContainer">
+<button class="tier-pill active px-3 py-1 rounded-full font-label-md text-label-md bg-inverse-surface text-inverse-on-surface shadow-sm transition-all" data-tier="ALL" type="button">
+              Semua (12)
+            </button>
+<button class="tier-pill px-3 py-1 rounded-full font-label-md text-label-md bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all" data-tier="Gold" type="button">
+              Gold (4)
+            </button>
+<button class="tier-pill px-3 py-1 rounded-full font-label-md text-label-md bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all" data-tier="Silver" type="button">
+              Silver (5)
+            </button>
+<button class="tier-pill px-3 py-1 rounded-full font-label-md text-label-md bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all" data-tier="Reguler" type="button">
+              Reguler (3)
+            </button>
+</div>
+<div class="flex items-center gap-2 text-secondary font-label-sm text-label-sm">
+<span>Urutkan:</span>
+<span class="font-semibold text-on-surface">Belanja Tertinggi</span>
+</div>
+</div>
+</div>
+<!-- Enterprise Data Table -->
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left" id="customerTable">
+<thead>
+<tr class="bg-surface-container text-secondary font-label-sm text-label-sm uppercase tracking-wider h-10">
+<th class="pl-4 pr-3" scope="col">ID Pelanggan</th>
+<th class="px-3" scope="col">Nama Pelanggan</th>
+<th class="px-3" scope="col">Kota</th>
+<th class="px-3 text-right" scope="col">Total Transaksi</th>
+<th class="px-3 text-right" scope="col">Total Belanja</th>
+<th class="px-3 text-center" scope="col">Kategori Loyalitas</th>
+<th class="pr-4 pl-3 text-right" scope="col">Aksi</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low font-body-sm text-body-sm">
+<!-- Row 1: Budi Santoso -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Surabaya" data-tier="Gold">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-001
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">BS</div>
+<span>Budi Santoso</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-surface-container px-2.5 py-1 rounded-full text-on-surface">Surabaya</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                5 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 1.450.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px]">star</span>
+<span>Pelanggan Gold ≥ 1 Juta</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Budi Santoso" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Budi Santoso" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Siti Rahmawati -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Malang" data-tier="Gold">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-002
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">SR</div>
+<span>Siti Rahmawati</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-surface-container px-2.5 py-1 rounded-full text-on-surface">Malang</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                4 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 1.120.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px]">star</span>
+<span>Pelanggan Gold ≥ 1 Juta</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Siti Rahmawati" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Siti Rahmawati" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Dimas Anggara -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Ponorogo" data-tier="Silver">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-003
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-secondary-fixed text-secondary flex items-center justify-center font-bold text-xs">DA</div>
+<span>Dimas Anggara</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-secondary-fixed/50 px-2.5 py-1 rounded-full text-secondary font-medium">Ponorogo</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                3 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 850.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-800 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px]">token</span>
+<span>Pelanggan Silver ≥ 500rb</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Dimas Anggara" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Dimas Anggara" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Andi Pratama -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Ponorogo" data-tier="Silver">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-004
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-secondary-fixed text-secondary flex items-center justify-center font-bold text-xs">AP</div>
+<span>Andi Pratama</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-secondary-fixed/50 px-2.5 py-1 rounded-full text-secondary font-medium">Ponorogo</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                3 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 700.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-800 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px]">token</span>
+<span>Pelanggan Silver ≥ 500rb</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Andi Pratama" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Andi Pratama" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Rina Wijaya -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Ponorogo" data-tier="Silver">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-005
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-secondary-fixed text-secondary flex items-center justify-center font-bold text-xs">RW</div>
+<span>Rina Wijaya</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-secondary-fixed/50 px-2.5 py-1 rounded-full text-secondary font-medium">Ponorogo</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                2 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 680.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-800 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px]">token</span>
+<span>Pelanggan Silver ≥ 500rb</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Rina Wijaya" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Rina Wijaya" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Eko Prasetyo -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Madiun" data-tier="Reguler">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-006
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-surface-container text-on-surface flex items-center justify-center font-bold text-xs">EP</div>
+<span>Eko Prasetyo</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-surface-container px-2.5 py-1 rounded-full text-on-surface">Madiun</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                1 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-on-surface">
+                Rp 320.000
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+<span>Pelanggan Reguler</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Eko Prasetyo" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Eko Prasetyo" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 7: Kartika Putri -->
+<tr class="hover:bg-surface-container-low/70 transition-colors h-14" data-city="Ponorogo" data-tier="Reguler">
+<td class="pl-4 pr-3 font-numeric-table text-numeric-table font-semibold text-secondary">
+                CUST-007
+              </td>
+<td class="px-3 font-label-lg text-label-lg font-semibold text-on-surface">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-surface-container text-on-surface flex items-center justify-center font-bold text-xs">KP</div>
+<span>Kartika Putri</span>
+</div>
+</td>
+<td class="px-3">
+<span class="font-label-sm text-label-sm bg-secondary-fixed/50 px-2.5 py-1 rounded-full text-secondary font-medium">Ponorogo</span>
+</td>
+<td class="px-3 text-right font-numeric-table text-numeric-table text-on-surface">
+                0 Transaksi
+              </td>
+<td class="px-3 text-right font-numeric-table text-numeric-table font-bold text-secondary">
+                Rp 0
+              </td>
+<td class="px-3 text-center">
+<span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 font-label-sm text-label-sm font-semibold px-2.5 py-1 rounded-full shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+<span>Pelanggan Reguler</span>
+</span>
+</td>
+<td class="pr-4 pl-3 text-right">
+<div class="flex items-center justify-end gap-1">
+<button aria-label="Edit Kartika Putri" class="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-secondary hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Hapus Kartika Putri" class="w-8 h-8 rounded-lg hover:bg-error-container/40 flex items-center justify-center text-secondary hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3">
+<span class="font-body-sm text-body-sm text-secondary">
+          Menampilkan <span class="font-semibold text-on-surface">1</span> sampai <span class="font-semibold text-on-surface">7</span> dari <span class="font-semibold text-on-surface">12</span> data pelanggan
+        </span>
+<div class="flex items-center gap-1.5">
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container text-secondary/40 cursor-not-allowed flex items-center gap-1 font-label-md text-label-md" disabled="" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+<span>Sebelumnya</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-inverse-surface text-inverse-on-surface font-label-md text-label-md font-semibold" type="button">1</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container text-on-surface font-label-md text-label-md" type="button">2</button>
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface flex items-center gap-1 font-label-md text-label-md shadow-sm transition-colors" type="button">
+<span>Berikutnya</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function initCustomerCRM() {
+    const searchInput = document.getElementById('searchCustomerInput');
+    const cityFilter = document.getElementById('filterCitySelect');
+    const tierPills = document.querySelectorAll('.tier-pill');
+    const tableRows = document.querySelectorAll('#customerTable tbody tr');
+
+    let currentTier = 'ALL';
+    let currentCity = 'ALL';
+    let searchKeyword = '';
+
+    function applyFilters() {
+      tableRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const rowTier = row.getAttribute('data-tier') || '';
+        const rowCity = row.getAttribute('data-city') || '';
+
+        const matchesSearch = text.includes(searchKeyword);
+        const matchesTier = (currentTier === 'ALL') || (rowTier === currentTier);
+        const matchesCity = (currentCity === 'ALL') || (rowCity.toLowerCase() === currentCity.toLowerCase());
+
+        if (matchesSearch && matchesTier && matchesCity) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        searchKeyword = e.target.value.toLowerCase().trim();
+        applyFilters();
+      });
+    }
+
+    if (cityFilter) {
+      cityFilter.addEventListener('change', (e) => {
+        currentCity = e.target.value;
+        applyFilters();
+      });
+    }
+
+    tierPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        tierPills.forEach(p => {
+          p.classList.remove('bg-inverse-surface', 'text-inverse-on-surface', 'shadow-sm');
+          p.classList.add('bg-surface-container', 'text-on-surface-variant');
+        });
+
+        pill.classList.remove('bg-surface-container', 'text-on-surface-variant');
+        pill.classList.add('bg-inverse-surface', 'text-inverse-on-surface', 'shadow-sm');
+
+        currentTier = pill.getAttribute('data-tier') || 'ALL';
+        applyFilters();
+      });
+    });
+  })();
+</script></main></div></body></html>
