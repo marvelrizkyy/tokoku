@@ -5,6 +5,11 @@
  * Menggunakan PHP Data Objects (PDO) dengan MySQL
  */
 
+// Pastikan session global aktif sebelum ada output HTML
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    session_start();
+}
+
 // Konfigurasi Database
 $db_host = 'localhost';
 $db_name = 'toko_ku';
@@ -70,6 +75,7 @@ function autoSelfHealDatabase(PDO $pdo) {
             CREATE TABLE IF NOT EXISTS tbl_pelanggan (
                 id_pelanggan INT AUTO_INCREMENT PRIMARY KEY,
                 nama_pelanggan VARCHAR(100) NOT NULL,
+                rfid_uid VARCHAR(50) NULL UNIQUE,
                 kota VARCHAR(50) NOT NULL
             ) ENGINE=InnoDB;
 
@@ -120,6 +126,17 @@ function autoSelfHealDatabase(PDO $pdo) {
                 nama_baru VARCHAR(100),
                 waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB;
+
+            CREATE TABLE IF NOT EXISTS tbl_user (
+                id_user INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                nama_lengkap VARCHAR(100) NOT NULL,
+                role ENUM('Admin', 'Kasir') NOT NULL DEFAULT 'Kasir',
+                status ENUM('Aktif', 'Nonaktif') NOT NULL DEFAULT 'Aktif',
+                terakhir_login DATETIME NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
         ");
 
         // 1b. TAMBAH KOLOM RINCIAN PEMBAYARAN PADA TBL_TRANSAKSI JIKA BELUM ADA
@@ -161,10 +178,23 @@ function autoSelfHealDatabase(PDO $pdo) {
             // Abaikan jika alter dibatasi
         }
 
+        // 1d. TAMBAH KOLOM RFID_UID PADA TBL_PELANGGAN JIKA BELUM ADA
+        try {
+            $stmtPelCols = $pdo->query("SHOW COLUMNS FROM tbl_pelanggan");
+            $existingPelCols = $stmtPelCols ? $stmtPelCols->fetchAll(PDO::FETCH_COLUMN) : [];
+            if (!in_array('rfid_uid', $existingPelCols)) {
+                $pdo->exec("ALTER TABLE tbl_pelanggan ADD COLUMN rfid_uid VARCHAR(50) NULL UNIQUE AFTER nama_pelanggan");
+            }
+            // Auto-generate rfid_uid default untuk pelanggan yang belum punya (contoh: RFID-1001, RFID-1002, dst.)
+            $pdo->exec("UPDATE tbl_pelanggan SET rfid_uid = CONCAT('RFID-', (1000 + id_pelanggan)) WHERE rfid_uid IS NULL OR rfid_uid = ''");
+        } catch (Exception $ePelCols) {
+            // Abaikan jika alter dibatasi
+        }
+
         // 2. BUAT VIEWS OTOMATIS (Mencegah error 'Base table or view not found: view_transaksi_pelanggan')
         $pdo->exec("
             CREATE OR REPLACE VIEW view_pelanggan AS
-            SELECT id_pelanggan, nama_pelanggan, kota
+            SELECT id_pelanggan, nama_pelanggan, rfid_uid, kota
             FROM tbl_pelanggan;
 
             CREATE OR REPLACE VIEW view_transaksi_pelanggan AS
@@ -172,6 +202,7 @@ function autoSelfHealDatabase(PDO $pdo) {
                 t.id_transaksi,
                 t.tanggal,
                 p.nama_pelanggan,
+                p.rfid_uid,
                 p.kota,
                 t.total_belanja
             FROM tbl_transaksi t
@@ -181,12 +212,13 @@ function autoSelfHealDatabase(PDO $pdo) {
             SELECT 
                 p.id_pelanggan,
                 p.nama_pelanggan,
+                p.rfid_uid,
                 p.kota,
                 COUNT(t.id_transaksi) AS total_transaksi,
                 COALESCE(SUM(t.total_belanja), 0) AS total_belanja
             FROM tbl_pelanggan p
             LEFT JOIN tbl_transaksi t ON p.id_pelanggan = t.id_pelanggan
-            GROUP BY p.id_pelanggan, p.nama_pelanggan, p.kota;
+            GROUP BY p.id_pelanggan, p.nama_pelanggan, p.rfid_uid, p.kota;
         ");
 
         // 3. SEED DATA AWAL JIKA TABEL KOSONG
@@ -276,6 +308,18 @@ function autoSelfHealDatabase(PDO $pdo) {
                 (14, 1, 'Mouse Wireless', 1, 150000),
                 (20, 2, 'Keyboard Mechanical', 3, 350000);
             ");
+        }
+
+        $cekUser = $pdo->query("SELECT COUNT(*) FROM tbl_user")->fetchColumn();
+        if ($cekUser == 0) {
+            $passAdmin = password_hash('admin123', PASSWORD_BCRYPT);
+            $passKasir = password_hash('kasir123', PASSWORD_BCRYPT);
+            $stmtSeedU = $pdo->prepare("
+                INSERT INTO tbl_user (username, password, nama_lengkap, role, status) VALUES
+                ('admin', ?, 'Administrator Toko', 'Admin', 'Aktif'),
+                ('kasir', ?, 'Kasir GopellMart', 'Kasir', 'Aktif')
+            ");
+            $stmtSeedU->execute([$passAdmin, $passKasir]);
         }
 
         // 4. BUAT STORED PROCEDURES
@@ -450,5 +494,64 @@ if (!function_exists('formatTanggal')) {
 if (!function_exists('sanitize')) {
     function sanitize($data) {
         return htmlspecialchars(trim($data ?? ''), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * =========================================================================
+ * HELPER ROLE-BASED ACCESS CONTROL (RBAC) SISTEM TOKOKU POS
+ * =========================================================================
+ */
+
+/**
+ * Cek apakah pengguna sudah login, jika belum redirect ke login.php
+ */
+if (!function_exists('requireLogin')) {
+    function requireLogin() {
+        if (empty($_SESSION['user_id'])) {
+            header('Location: login.php?error=unauthorized');
+            exit;
+        }
+    }
+}
+
+/**
+ * Cek apakah role pengguna memiliki izin akses
+ * Contoh: requireRole(['Admin']); atau requireRole(['Admin', 'Kasir']);
+ */
+if (!function_exists('requireRole')) {
+    function requireRole($allowed_roles = ['Admin']) {
+        requireLogin();
+        $user_role = $_SESSION['role'] ?? '';
+        $allowed = (array)$allowed_roles;
+        
+        if (!in_array($user_role, $allowed)) {
+            // Kasir mencoba membuka halaman admin
+            if ($user_role === 'Kasir') {
+                header('Location: kasir.php?error=forbidden');
+                exit;
+            } else {
+                header('Location: login.php?error=forbidden');
+                exit;
+            }
+        }
+    }
+}
+
+/**
+ * Cek apakah role user saat ini adalah Admin
+ */
+if (!function_exists('isAdmin')) {
+    function isAdmin() {
+        return isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+    }
+}
+
+/**
+ * Cek apakah role user saat ini adalah Kasir
+ */
+if (!function_exists('isKasir')) {
+    function isKasir() {
+        return isset($_SESSION['role']) && $_SESSION['role'] === 'Kasir';
     }
 }

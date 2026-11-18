@@ -5,6 +5,7 @@
  * CRUD Master Data Produk & Monitoring Stok
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Admin']);
 
 $page_title = 'Manajemen Produk & Stok';
 $current_page = 'produk';

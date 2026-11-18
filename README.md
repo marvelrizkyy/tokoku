@@ -30,6 +30,12 @@ Aplikasi web POS & Kasir modern dibangun menggunakan **PHP Native (PDO)**, **Tai
 
 | Halaman / File | Fitur SQL yang Diimplementasikan | Deskripsi |
 | :--- | :--- | :--- |
+| [`produk.php`](file:///c:/xampp_baru/htdocs/tokoku/produk.php) | **CRUD Produk & Stock Monitor** | *(Khusus Admin)* Kelola master data produk, edit harga, monitoring stok menipis (< 10), dan generator barcode produk. |
+| [`riwayat.php`](file:///c:/xampp_baru/htdocs/tokoku/riwayat.php) | **Riwayat Transaksi Kasir** | *(Khusus Kasir & Admin)* Daftar transaksi kasir harian, filter tanggal/metode bayar, rincian omset, dan cetak ulang nota. |
+| [`users.php`](file:///c:/xampp_baru/htdocs/tokoku/users.php) | **Manajemen Petugas & RBAC** | *(Khusus Admin)* Tambah kasir baru, reset password kasir, toggle status aktif/nonaktif, dan pantau aktivitas login. |
+| [`welcome.php`](file:///c:/xampp_baru/htdocs/tokoku/welcome.php) | **Landing & Gateway Showcase** | Halaman Welcome utama ekosistem TokoKu & GopellMart: dual portal chooser (Pembeli vs Petugas), live stats database, dan quick check kartu RFID member. |
+| [`login.php`](file:///c:/xampp_baru/htdocs/tokoku/login.php) | **BCRYPT Auth & Multi-Role** | Autentikasi aman petugas (Admin & Kasir) dengan session handling dan password hashing. |
+| [`pembeli.php`](file:///c:/xampp_baru/htdocs/tokoku/pembeli.php) | **Customer Cashless E-Shop** | Portal belanja online pelanggan tanpa tunai (QRIS & Transfer Bank) dengan login kartu RFID member dan riwayat nota digital. |
 | [`config/db.php`](file:///c:/xampp_baru/htdocs/tokoku/config/db.php) | **PDO Connection & Error Mode** | Mengaktifkan `PDO::ERRMODE_EXCEPTION`, helper `formatRupiah()`, `formatTanggal()`, dan sanitasi. |
 | [`includes/header.php`](file:///c:/xampp_baru/htdocs/tokoku/includes/header.php) | **Tailwind CSS & FontAwesome** | Template header responsif dengan CDN Tailwind CSS & FontAwesome 6. |
 | [`includes/sidebar.php`](file:///c:/xampp_baru/htdocs/tokoku/includes/sidebar.php) | **Modern Responsive Sidebar** | Navigasi menu utama (Dashboard, Kasir, Laporan, Pelanggan, Audit Log) & status MySQL. |

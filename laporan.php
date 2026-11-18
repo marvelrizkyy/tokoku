@@ -5,6 +5,7 @@
  * Menggunakan Database View view_transaksi_pelanggan & Multiple INNER JOIN 3-4 Tabel
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Admin']);
 
 $page_title = 'Laporan Multi-JOIN & Rincian Transaksi';
 $current_page = 'laporan';

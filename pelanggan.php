@@ -5,6 +5,7 @@
  * Menggunakan SP TambahPelanggan, View view_total_belanja & SF KategoriBelanja
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Admin', 'Kasir']);
 
 $page_title = 'Manajemen Pelanggan & Loyalitas';
 $current_page = 'pelanggan';
@@ -20,6 +21,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
     // 1. TAMBAH PELANGGAN (CALL TambahPelanggan(nama, kota))
     if ($action === 'tambah_pelanggan') {
         $nama = sanitize($_POST['nama_pelanggan'] ?? '');
+        $rfid = sanitize($_POST['rfid_uid'] ?? '');
         $kota = sanitize($_POST['kota'] ?? '');
 
         if (empty($nama) || empty($kota)) {
@@ -30,7 +32,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
                 $stmt->execute([$nama, $kota]);
                 $stmt->closeCursor();
 
-                $success_message = "Pelanggan '{$nama}' berhasil ditambahkan ke database TokoKu.";
+                // Ambil id pelanggan yang baru saja dibuat
+                $newId = (int)$pdo->query("SELECT MAX(id_pelanggan) FROM tbl_pelanggan")->fetchColumn();
+                if (empty($rfid)) {
+                    $rfid = 'RFID-' . (1000 + $newId);
+                }
+                
+                try {
+                    $stmtRfid = $pdo->prepare("UPDATE tbl_pelanggan SET rfid_uid = ? WHERE id_pelanggan = ?");
+                    $stmtRfid->execute([$rfid, $newId]);
+                } catch (Exception $eRfid) {}
+
+                $success_message = "Pelanggan '{$nama}' (Kartu: {$rfid}) berhasil ditambahkan ke database TokoKu.";
             } catch (PDOException $e) {
                 $error_message = "Gagal menambah pelanggan: " . $e->getMessage();
             }
@@ -41,26 +54,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
     elseif ($action === 'update_pelanggan') {
         $id_pelanggan = (int)($_POST['id_pelanggan'] ?? 0);
         $nama_baru    = sanitize($_POST['nama_pelanggan'] ?? '');
+        $rfid_baru    = sanitize($_POST['rfid_uid'] ?? '');
         $kota_baru    = sanitize($_POST['kota'] ?? '');
 
         if ($id_pelanggan <= 0 || empty($nama_baru) || empty($kota_baru)) {
             $error_message = "Data perubahan tidak valid.";
         } else {
             try {
-                $stmtUpdate = $pdo->prepare("UPDATE tbl_pelanggan SET nama_pelanggan = ?, kota = ? WHERE id_pelanggan = ?");
-                $stmtUpdate->execute([$nama_baru, $kota_baru, $id_pelanggan]);
+                if (empty($rfid_baru)) {
+                    $rfid_baru = 'RFID-' . (1000 + $id_pelanggan);
+                }
+                $stmtUpdate = $pdo->prepare("UPDATE tbl_pelanggan SET nama_pelanggan = ?, rfid_uid = ?, kota = ? WHERE id_pelanggan = ?");
+                $stmtUpdate->execute([$nama_baru, $rfid_baru, $kota_baru, $id_pelanggan]);
 
-                $success_message = "Data pelanggan #CUST-{$id_pelanggan} berhasil diperbarui (Audit Log terpicu).";
+                $success_message = "Data pelanggan #CUST-{$id_pelanggan} (Kartu: {$rfid_baru}) berhasil diperbarui.";
             } catch (PDOException $e) {
                 $error_message = "Gagal memperbarui pelanggan: " . $e->getMessage();
             }
         }
     }
 
-    // 3. HAPUS PELANGGAN (memicu trigger after_delete_pelanggan & Foreign Key error handling)
+    // 3. HAPUS PELANGGAN (Khusus Administrator)
     elseif ($action === 'delete_pelanggan') {
-        $id_pelanggan = (int)($_POST['id_pelanggan'] ?? 0);
-        $nama_pelanggan = sanitize($_POST['nama_pelanggan'] ?? 'Pelanggan');
+        if (!isAdmin()) {
+            $error_message = "Akses ditolak: Hanya Administrator yang berhak menghapus data pelanggan.";
+        } else {
+            $id_pelanggan = (int)($_POST['id_pelanggan'] ?? 0);
+            $nama_pelanggan = sanitize($_POST['nama_pelanggan'] ?? 'Pelanggan');
 
         if ($id_pelanggan <= 0) {
             $error_message = "ID Pelanggan tidak valid.";
@@ -84,15 +104,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
         }
     }
 }
+}
 
 // Cek mode edit via query parameter (?edit=ID)
 if (isset($_GET['edit']) && (int)$_GET['edit'] > 0 && $pdo) {
     $edit_id = (int)$_GET['edit'];
     try {
-        $spCari = $pdo->prepare("CALL CariPelanggan(?)");
-        $spCari->execute([$edit_id]);
-        $edit_data = $spCari->fetch();
-        $spCari->closeCursor();
+        $stmtC = $pdo->prepare("SELECT * FROM tbl_pelanggan WHERE id_pelanggan = ?");
+        $stmtC->execute([$edit_id]);
+        $edit_data = $stmtC->fetch();
+        $stmtC->closeCursor();
     } catch (PDOException $e) {
         $error_message = "Gagal memuat data pelanggan: " . $e->getMessage();
     }
@@ -107,6 +128,7 @@ if ($pdo) {
         $sqlList = "SELECT 
                         id_pelanggan,
                         nama_pelanggan,
+                        rfid_uid,
                         kota,
                         total_transaksi,
                         total_belanja,
@@ -116,7 +138,7 @@ if ($pdo) {
         $paramsList = [];
 
         if (!empty($search_keyword)) {
-            $sqlList .= " AND (nama_pelanggan LIKE :kw OR kota LIKE :kw)";
+            $sqlList .= " AND (nama_pelanggan LIKE :kw OR kota LIKE :kw OR rfid_uid LIKE :kw)";
             $paramsList[':kw'] = "%{$search_keyword}%";
         }
 
@@ -129,38 +151,11 @@ if ($pdo) {
     } catch (PDOException $e) {
         // Fallback auto-healing
         try {
-            $pdo->exec("
-                CREATE OR REPLACE VIEW view_total_belanja AS
-                SELECT 
-                    p.id_pelanggan,
-                    p.nama_pelanggan,
-                    p.kota,
-                    COUNT(t.id_transaksi) AS total_transaksi,
-                    COALESCE(SUM(t.total_belanja), 0) AS total_belanja
-                FROM tbl_pelanggan p
-                LEFT JOIN tbl_transaksi t ON p.id_pelanggan = t.id_pelanggan
-                GROUP BY p.id_pelanggan, p.nama_pelanggan, p.kota;
-            ");
-            $pdo->exec("
-                DROP FUNCTION IF EXISTS KategoriBelanja;
-                CREATE FUNCTION KategoriBelanja(total DECIMAL(12,2))
-                RETURNS VARCHAR(30) DETERMINISTIC NO SQL
-                BEGIN
-                    RETURN CASE
-                        WHEN total >= 1000000 THEN 'Pelanggan Gold'
-                        WHEN total >= 500000 THEN 'Pelanggan Silver'
-                        ELSE 'Pelanggan Reguler'
-                    END;
-                END;
-            ");
-            $stmtList = $pdo->prepare($sqlList);
-            $stmtList->execute($paramsList);
-            $daftar_pelanggan = $stmtList->fetchAll();
-        } catch (Exception $ex) {
             $sqlFallback = "
                 SELECT 
                     p.id_pelanggan,
                     p.nama_pelanggan,
+                    p.rfid_uid,
                     p.kota,
                     COUNT(t.id_transaksi) AS total_transaksi,
                     COALESCE(SUM(t.total_belanja), 0) AS total_belanja,
@@ -171,11 +166,11 @@ if ($pdo) {
                     END AS kategori
                 FROM tbl_pelanggan p
                 LEFT JOIN tbl_transaksi t ON p.id_pelanggan = t.id_pelanggan
-                GROUP BY p.id_pelanggan, p.nama_pelanggan, p.kota
+                GROUP BY p.id_pelanggan, p.nama_pelanggan, p.rfid_uid, p.kota
                 ORDER BY p.id_pelanggan ASC
             ";
             $daftar_pelanggan = $pdo->query($sqlFallback)->fetchAll();
-        }
+        } catch (Exception $ex) {}
     }
 }
 
@@ -279,6 +274,27 @@ require_once __DIR__ . '/includes/sidebar.php';
                                    placeholder="Contoh: Hendra Kusuma" 
                                    class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface text-on-surface text-xs font-medium border border-outline-variant/40 focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary-container/30 transition shadow-xs">
                         </div>
+                    </div>
+
+                    <!-- Input Nomor Kartu RFID Member -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-on-surface">
+                                Nomor Kartu RFID Member
+                            </label>
+                            <button type="button" onclick="document.getElementById('inputRfid').value='RFID-' + Math.floor(1000 + Math.random()*9000)" class="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5">
+                                <span class="material-symbols-outlined text-[13px]">autorenew</span>
+                                <span>Acak Nomor</span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-[18px]">contactless</span>
+                            <input type="text" id="inputRfid" name="rfid_uid" 
+                                   value="<?= $edit_data ? htmlspecialchars($edit_data['rfid_uid'] ?? '') : '' ?>"
+                                   placeholder="Contoh: RFID-1001 (atau tap kartu)" 
+                                   class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface text-on-surface text-xs font-mono font-bold border border-outline-variant/40 focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary-container/30 transition shadow-xs">
+                        </div>
+                        <p class="text-[10px] text-secondary">Dipakai untuk tap di kasir toko dan login pembeli secara online</p>
                     </div>
 
                     <!-- Dropdown / Input Kota -->
@@ -390,7 +406,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                 <div class="w-7 h-7 rounded-full <?= $isGold ? 'bg-primary-fixed text-on-primary-fixed' : ($isSilver ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container text-secondary') ?> flex items-center justify-center font-bold text-[10px] font-headline">
                                                     <?= $initials ?>
                                                 </div>
-                                                <span class="font-bold text-on-surface"><?= htmlspecialchars($row['nama_pelanggan']) ?></span>
+                                                <div>
+                                                    <span class="font-bold text-on-surface block"><?= htmlspecialchars($row['nama_pelanggan']) ?></span>
+                                                    <span class="inline-flex items-center gap-0.5 font-mono text-[9px] font-bold text-primary bg-primary-container/10 px-1.5 py-0.2 rounded border border-primary-container/20 mt-0.5">
+                                                        <span class="material-symbols-outlined text-[11px]">contactless</span>
+                                                        <span><?= htmlspecialchars($row['rfid_uid'] ?? ('RFID-' . (1000 + $row['id_pelanggan']))) ?></span>
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="py-3 px-4 text-secondary">
@@ -415,14 +437,16 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                    class="p-1 rounded text-secondary hover:text-on-surface transition">
                                                     <span class="material-symbols-outlined text-[16px]">edit</span>
                                                 </a>
-                                                <form method="POST" action="pelanggan.php" class="inline" onsubmit="return confirm('Hapus pelanggan <?= htmlspecialchars(addslashes($row['nama_pelanggan'])) ?>?')">
-                                                    <input type="hidden" name="action" value="delete_pelanggan">
-                                                    <input type="hidden" name="id_pelanggan" value="<?= $row['id_pelanggan'] ?>">
-                                                    <input type="hidden" name="nama_pelanggan" value="<?= htmlspecialchars($row['nama_pelanggan']) ?>">
-                                                    <button type="submit" title="Hapus" class="p-1 rounded text-secondary hover:text-error transition">
-                                                        <span class="material-symbols-outlined text-[16px]">delete</span>
-                                                    </button>
-                                                </form>
+                                                <?php if (isAdmin()): ?>
+                                                    <form method="POST" action="pelanggan.php" class="inline" onsubmit="return confirm('Hapus pelanggan <?= htmlspecialchars(addslashes($row['nama_pelanggan'])) ?>?')">
+                                                        <input type="hidden" name="action" value="delete_pelanggan">
+                                                        <input type="hidden" name="id_pelanggan" value="<?= $row['id_pelanggan'] ?>">
+                                                        <input type="hidden" name="nama_pelanggan" value="<?= htmlspecialchars($row['nama_pelanggan']) ?>">
+                                                        <button type="submit" title="Hapus (Admin)" class="p-1 rounded text-secondary hover:text-error transition">
+                                                            <span class="material-symbols-outlined text-[16px]">delete</span>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>

@@ -6,6 +6,7 @@
  * Mendukung pembelian multi-produk (banyak macam barang sekaligus)
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Kasir', 'Admin']);
 
 $page_title = 'Point of Sale (Kasir)';
 $current_page = 'kasir';
@@ -13,6 +14,56 @@ $current_page = 'kasir';
 $success_message = null;
 $error_trigger_message = null;
 $error_general_message = null;
+
+if (isset($_GET['error']) && $_GET['error'] === 'forbidden') {
+    $error_general_message = "Akses Ditolak: Anda tidak memiliki izin untuk membuka halaman Administrator. Anda telah diarahkan ke Terminal Kasir.";
+}
+if (isset($_GET['msg']) && $_GET['msg'] === 'member_added') {
+    $success_message = "Member baru berhasil didaftarkan dan dipilih di transaksi.";
+}
+
+// Handle Form Submission: Tambah Member Baru Langsung dari Kasir
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'tambah_pelanggan_kasir') {
+    $nama_baru = sanitize($_POST['nama_pelanggan'] ?? '');
+    $rfid_baru = sanitize($_POST['rfid_uid'] ?? '');
+    $kota_baru = sanitize($_POST['kota'] ?? 'Ponorogo');
+
+    if (empty($nama_baru)) {
+        $error_general_message = "Nama member wajib diisi.";
+    } else {
+        try {
+            if (empty($rfid_baru)) {
+                $rfid_baru = 'RFID-' . rand(1000, 9999);
+            }
+            $stmtNP = $pdo->prepare("INSERT INTO tbl_pelanggan (nama_pelanggan, rfid_uid, kota) VALUES (?, ?, ?)");
+            $stmtNP->execute([$nama_baru, $rfid_baru, $kota_baru]);
+            $new_id = (int)$pdo->lastInsertId();
+
+            if (isset($_POST['is_ajax']) && $_POST['is_ajax'] === '1') {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'id_pelanggan' => $new_id,
+                    'nama_pelanggan' => $nama_baru,
+                    'rfid_uid' => $rfid_baru,
+                    'kota' => $kota_baru,
+                    'message' => "Member '{$nama_baru}' ({$rfid_baru}) berhasil didaftarkan!"
+                ]);
+                exit;
+            } else {
+                header("Location: kasir.php?pelanggan_id={$new_id}&msg=member_added");
+                exit;
+            }
+        } catch (Exception $eNP) {
+            if (isset($_POST['is_ajax']) && $_POST['is_ajax'] === '1') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $eNP->getMessage()]);
+                exit;
+            }
+            $error_general_message = "Gagal menambah member: " . $eNP->getMessage();
+        }
+    }
+}
 
 // Ambil pelanggan terpilih dari URL jika ada
 $selected_pelanggan_id = isset($_GET['pelanggan_id']) ? (int)$_GET['pelanggan_id'] : 0;
@@ -255,13 +306,13 @@ $daftar_produk = [];
 
 if ($pdo) {
     try {
-        try {
-            $spCust = $pdo->query("CALL TampilPelanggan()");
-            $daftar_pelanggan = $spCust->fetchAll();
-            $spCust->closeCursor();
-        } catch (Exception $e) {
-            $daftar_pelanggan = $pdo->query("SELECT * FROM tbl_pelanggan ORDER BY nama_pelanggan ASC")->fetchAll();
+        $daftar_pelanggan = $pdo->query("SELECT id_pelanggan, nama_pelanggan, rfid_uid, kota FROM tbl_pelanggan ORDER BY nama_pelanggan ASC")->fetchAll();
+        foreach ($daftar_pelanggan as &$cust) {
+            if (empty($cust['rfid_uid'])) {
+                $cust['rfid_uid'] = 'RFID-' . (1000 + $cust['id_pelanggan']);
+            }
         }
+        unset($cust);
 
         $stmtProd = $pdo->query("
             SELECT p.id_produk, p.barcode, p.nama_produk, p.harga, p.stok, k.nama_kategori 
@@ -299,11 +350,6 @@ require_once __DIR__ . '/includes/sidebar.php';
             <p class="text-xs text-secondary mt-0.5"><?= formatTanggal(date('Y-m-d')) ?> &bull; Bisa memilih & membeli beberapa macam barang sekaligus</p>
         </div>
         <div class="flex items-center gap-3">
-            <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface text-xs font-medium">
-                <span class="material-symbols-outlined text-primary text-[18px]">store</span>
-                <span>Cabang Pusat - Ponorogo</span>
-                <span class="w-1.5 h-1.5 rounded-full bg-tertiary-container animate-pulse"></span>
-            </div>
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-inverse-surface text-inverse-on-surface text-xs font-semibold">
                 <span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim">terminal</span>
                 <span>POS Terminal #01</span>
@@ -365,15 +411,35 @@ require_once __DIR__ . '/includes/sidebar.php';
                             <span class="material-symbols-outlined text-primary-container text-[20px]">person_pin</span>
                             <label class="font-headline text-sm font-bold text-on-surface tracking-tight">Pilih Pelanggan Transaksi</label>
                         </div>
-                        <a href="pelanggan.php" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-colors">
-                            <span class="material-symbols-outlined text-[16px]">person_add</span>
-                            <span>+ Pelanggan Baru</span>
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <a href="riwayat.php" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-colors" title="Lihat Riwayat Transaksi Kasir">
+                                <span class="material-symbols-outlined text-[16px] text-primary">receipt_long</span>
+                                <span class="hidden sm:inline">Riwayat Nota</span>
+                            </a>
+                            <button type="button" onclick="openModalTambahMemberKasir()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-container hover:bg-on-primary-fixed-variant text-white text-xs font-bold transition shadow-2xs active:scale-95">
+                                <span class="material-symbols-outlined text-[16px]">person_add</span>
+                                <span>+ Member Baru</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Dropdown Pelanggan -->
-                    <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex items-center gap-3 flex-1">
+                    <!-- Dropdown & Tap Kartu RFID Pelanggan -->
+                    <div class="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary-container text-[18px]">contactless</span>
+                            <span class="text-[11px] font-bold text-on-surface whitespace-nowrap">Tap Kartu RFID:</span>
+                            <div class="relative flex-1">
+                                <input type="text" id="rfidCardInput" placeholder="Tempel kartu RFID di sensor (Enter)..." 
+                                       autocomplete="off"
+                                       class="w-full h-8 pl-8 pr-14 text-xs font-mono font-bold bg-surface-container-lowest text-on-surface rounded-lg border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-2xs">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1.5 text-secondary text-[16px]">credit_card</span>
+                                <span class="absolute right-2 top-1.5 px-1 py-0.2 rounded bg-surface-container text-[8px] font-bold text-secondary font-mono pointer-events-none">
+                                    TAP RFID
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center font-bold text-sm text-primary font-headline" id="custAvatar">
                                 ?
                             </div>
@@ -384,9 +450,10 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <?php foreach ($daftar_pelanggan as $p): ?>
                                         <option value="<?= $p['id_pelanggan'] ?>" 
                                                 data-nama="<?= htmlspecialchars($p['nama_pelanggan']) ?>"
+                                                data-rfid="<?= htmlspecialchars($p['rfid_uid'] ?? '') ?>"
                                                 data-kota="<?= htmlspecialchars($p['kota'] ?? 'Ponorogo') ?>"
                                                 <?= ($selected_pelanggan_id === (int)$p['id_pelanggan']) ? 'selected' : '' ?>>
-                                            #CUST-<?= str_pad($p['id_pelanggan'], 3, '0', STR_PAD_LEFT) ?> - <?= htmlspecialchars($p['nama_pelanggan']) ?> (<?= htmlspecialchars($p['kota'] ?? 'Kota') ?>)
+                                            #CUST-<?= str_pad($p['id_pelanggan'], 3, '0', STR_PAD_LEFT) ?> - <?= htmlspecialchars($p['nama_pelanggan']) ?> [<?= htmlspecialchars($p['rfid_uid'] ?? '') ?>]
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -1286,6 +1353,40 @@ require_once __DIR__ . '/includes/sidebar.php';
         }
         renderCart();
 
+        // RFID Card Tap Handler (Otomatis Pilih Pelanggan saat Kartu di-Tap)
+        const rfidInput = document.getElementById('rfidCardInput');
+        if (rfidInput) {
+            rfidInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const cardCode = this.value.trim().toLowerCase();
+                    if (!cardCode) return;
+
+                    const selectPel = document.getElementById('selectPelanggan');
+                    let found = false;
+                    for (let i = 0; i < selectPel.options.length; i++) {
+                        const opt = selectPel.options[i];
+                        const rfidVal = (opt.getAttribute('data-rfid') || '').toLowerCase();
+                        const custId = opt.value;
+                        if (rfidVal === cardCode || custId === cardCode || opt.text.toLowerCase().includes(cardCode)) {
+                            selectPel.selectedIndex = i;
+                            updatePelangganInfo(selectPel);
+                            playPosBeep('success');
+                            showScannerToast('Kartu Terdeteksi', `Member: ${opt.getAttribute('data-nama')}`, 'success');
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        playPosBeep('error');
+                        showScannerToast('Kartu Tidak Dikenal', `Nomor kartu "${this.value}" belum terdaftar.`, 'error');
+                    }
+                    this.value = '';
+                }
+            });
+        }
+
         // Hardware Barcode Scanner Input Handler (Auto-focus & Enter Key)
         const scannerInput = document.getElementById('barcodeScannerInput');
         if (scannerInput) {
@@ -1328,7 +1429,121 @@ require_once __DIR__ . '/includes/sidebar.php';
             });
         }
     });
+
+    // Helper Modal Tambah Member Baru Langsung dari Kasir
+    function openModalTambahMemberKasir() {
+        document.getElementById('modalTambahMemberKasir').classList.remove('hidden');
+        document.getElementById('kasirNewMemberNama').focus();
+    }
+    function closeModalTambahMemberKasir() {
+        document.getElementById('modalTambahMemberKasir').classList.add('hidden');
+    }
+    function generateRandomRfidKasir() {
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        document.getElementById('kasirNewMemberRfid').value = 'RFID-' + rand;
+    }
+    async function handleTambahMemberKasir(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitMemberKasir');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[16px]">sync</span> Menyimpan...';
+
+        const form = document.getElementById('formTambahMemberKasir');
+        const formData = new FormData(form);
+
+        try {
+            const resp = await fetch('kasir.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                const selectPel = document.getElementById('selectPelanggan');
+                const newOpt = document.createElement('option');
+                newOpt.value = data.id_pelanggan;
+                newOpt.setAttribute('data-nama', data.nama_pelanggan);
+                newOpt.setAttribute('data-rfid', data.rfid_uid);
+                newOpt.setAttribute('data-kota', data.kota);
+                newOpt.textContent = `#CUST-${String(data.id_pelanggan).padStart(3, '0')} - ${data.nama_pelanggan} [${data.rfid_uid}]`;
+                selectPel.appendChild(newOpt);
+
+                selectPel.value = data.id_pelanggan;
+                updatePelangganInfo(selectPel);
+
+                closeModalTambahMemberKasir();
+                form.reset();
+                document.getElementById('kasirNewMemberKota').value = 'Ponorogo';
+                showScannerToast('Member Terdaftar', data.message, 'success');
+                playPosBeep('success');
+            } else {
+                alert('Gagal: ' + (data.message || 'Terjadi kesalahan sistem'));
+            }
+        } catch (err) {
+            alert('Terjadi kesalahan jaringan: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span> Simpan & Pilih Member';
+        }
+    }
 </script>
+
+<!-- Modal Tambah Member Baru Langsung dari Kasir -->
+<div id="modalTambahMemberKasir" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xl max-w-md w-full overflow-hidden">
+        
+        <div class="px-5 py-4 border-b border-outline-variant/20 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[22px]">badge</span>
+                <h3 class="font-headline font-bold text-base text-on-surface">Pendaftaran Member &amp; Kartu RFID</h3>
+            </div>
+            <button type="button" onclick="closeModalTambahMemberKasir()" class="text-secondary hover:text-on-surface p-1">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
+        </div>
+
+        <form id="formTambahMemberKasir" onsubmit="handleTambahMemberKasir(event)" class="p-5 space-y-4">
+            <input type="hidden" name="action" value="tambah_pelanggan_kasir">
+            <input type="hidden" name="is_ajax" value="1">
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface mb-1">Nama Pelanggan / Member <span class="text-error">*</span></label>
+                <input type="text" id="kasirNewMemberNama" name="nama_pelanggan" required placeholder="Contoh: Budi Prasetyo"
+                       class="w-full h-10 px-3 text-xs rounded-lg border border-outline-variant/40 bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-on-surface">Nomor Kartu RFID</label>
+                    <button type="button" onclick="generateRandomRfidKasir()" class="text-[10px] text-primary hover:underline font-bold">Acak Nomor</button>
+                </div>
+                <div class="relative">
+                    <input type="text" id="kasirNewMemberRfid" name="rfid_uid" placeholder="Tempel kartu RFID atau klik acak..."
+                           class="w-full h-10 pl-9 pr-3 text-xs font-mono font-bold rounded-lg border border-outline-variant/40 bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    <span class="material-symbols-outlined absolute left-2.5 top-2.5 text-secondary text-[18px]">credit_card</span>
+                </div>
+                <p class="text-[10px] text-secondary mt-1">Bisa langsung tap kartu RFID fisik di sensor reader</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface mb-1">Kota Domisili</label>
+                <input type="text" id="kasirNewMemberKota" name="kota" value="Ponorogo" placeholder="Contoh: Ponorogo"
+                       class="w-full h-10 px-3 text-xs rounded-lg border border-outline-variant/40 bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+            </div>
+
+            <div class="pt-3 border-t border-outline-variant/20 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeModalTambahMemberKasir()" class="px-4 py-2 rounded-lg bg-surface-container text-secondary text-xs font-bold transition">
+                    Batal
+                </button>
+                <button type="submit" id="btnSubmitMemberKasir" class="px-5 py-2 rounded-lg bg-primary-container hover:bg-on-primary-fixed-variant text-white font-headline text-xs font-bold transition shadow-2xs active:scale-95 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">save</span>
+                    <span>Simpan &amp; Pilih Member</span>
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
 
 <?php
 require_once __DIR__ . '/includes/footer.php';

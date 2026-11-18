@@ -4,6 +4,7 @@
  * Sistem Informasi Penjualan & POS (toko_ku)
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Admin']);
 
 $page_title = 'Main Analytics Dashboard';
 $current_page = 'index';
@@ -105,11 +106,6 @@ require_once __DIR__ . '/includes/sidebar.php';
             <p class="text-xs text-secondary mt-0.5"><?= formatTanggal(date('Y-m-d')) ?> &bull; Data operasional penjualan ritel terkini</p>
         </div>
         <div class="flex items-center gap-3">
-            <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface text-xs font-medium">
-                <span class="material-symbols-outlined text-primary text-[18px]">store</span>
-                <span>Cabang Pusat - Ponorogo</span>
-                <span class="w-1.5 h-1.5 rounded-full bg-tertiary-container animate-pulse"></span>
-            </div>
             <div class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-inverse-surface text-inverse-on-surface text-xs font-semibold">
                 <span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim">terminal</span>
                 <span>POS #01</span>

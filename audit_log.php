@@ -7,6 +7,7 @@
  * 2. after_insert_pelanggan & after_delete_pelanggan -> tbl_log & log_pelanggan
  */
 require_once __DIR__ . '/config/db.php';
+requireRole(['Admin']);
 
 $page_title = 'Audit Log Trigger';
 $current_page = 'audit_log';
