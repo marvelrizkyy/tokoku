@@ -4,6 +4,13 @@
  * Sistem Informasi Penjualan & POS (toko_ku)
  */
 require_once __DIR__ . '/config/db.php';
+
+// Halaman welcome menjadi pintu utama untuk pengunjung yang belum login
+if (empty($_SESSION['user_id'])) {
+    header('Location: welcome.php');
+    exit;
+}
+
 requireRole(['Admin']);
 
 $page_title = 'Main Analytics Dashboard';

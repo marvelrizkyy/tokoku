@@ -6,6 +6,7 @@
  * Mendukung pembelian multi-produk (banyak macam barang sekaligus)
  */
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/config/duitku.php';
 requireRole(['Kasir', 'Admin']);
 
 $page_title = 'Point of Sale (Kasir)';
@@ -76,7 +77,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) 
     $hitung_pajak      = isset($_POST['termasuk_pajak']) && $_POST['termasuk_pajak'] === '1';
     $nominal_bayar     = (float)($_POST['nominal_bayar'] ?? 0);
     $raw_metode        = trim($_POST['metode_pembayaran'] ?? 'Tunai');
-    if (strcasecmp($raw_metode, 'QRIS') === 0) {
+    $is_duitku         = strcasecmp($raw_metode, 'Duitku POP') === 0;
+    $customer_email    = trim($_POST['customer_email'] ?? '');
+    $customer_phone    = trim($_POST['customer_phone'] ?? '');
+    if ($is_duitku) {
+        $metode_pembayaran = 'Duitku POP';
+    } elseif (strcasecmp($raw_metode, 'QRIS') === 0) {
         $metode_pembayaran = 'QRIS';
     } elseif (stripos($raw_metode, 'transfer') !== false || stripos($raw_metode, 'debit') !== false) {
         $metode_pembayaran = 'Transfer / Debit';
@@ -90,6 +96,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) 
 
     if ($id_pelanggan <= 0) {
         $error_general_message = "Harap pilih Pelanggan terlebih dahulu.";
+    } elseif ($is_duitku && !filter_var($customer_email, FILTER_VALIDATE_EMAIL)) {
+        $error_general_message = "Masukkan email pelanggan yang valid untuk pembayaran Duitku.";
     } elseif (empty($cart_items) || !is_array($cart_items)) {
         $error_general_message = "Keranjang belanja masih kosong. Harap pilih minimal satu barang.";
     } else {
@@ -139,51 +147,76 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) 
                 throw new Exception("Tidak ada item yang valid untuk diproses.");
             }
 
-            // 2. Eksekusi Stored Procedure TambahTransaksi untuk item pertama
-            // Ini akan membuat record transaksi di tbl_transaksi, detail item pertama, dan mengurangi stok item pertama
-            $first_item = $validated_items[0];
-            $stmtSP = $pdo->prepare("CALL TambahTransaksi(?, ?, ?, ?)");
-            $stmtSP->execute([$tanggal, $id_pelanggan, $first_item['id_produk'], $first_item['jumlah']]);
-            $stmtSP->closeCursor();
+            $merchant_order_id = null;
+            if ($is_duitku) {
+                $merchant_order_id = 'GK-' . date('YmdHis') . '-' . bin2hex(random_bytes(4));
+                $stmtCustomer = $pdo->prepare("SELECT id_pelanggan, nama_pelanggan, rfid_uid FROM tbl_pelanggan WHERE id_pelanggan = ?");
+                $stmtCustomer->execute([$id_pelanggan]);
+                $customer = $stmtCustomer->fetch();
+                $stmtCustomer->closeCursor();
+                if (!$customer) {
+                    throw new Exception("Data pelanggan tidak ditemukan.");
+                }
 
-            // Ambil ID transaksi terbaru yang baru saja di-generate
-            $stmtId = $pdo->prepare("SELECT id_transaksi FROM tbl_transaksi WHERE id_pelanggan = ? ORDER BY id_transaksi DESC LIMIT 1");
-            $stmtId->execute([$id_pelanggan]);
-            $id_transaksi_baru = (int)$stmtId->fetchColumn();
-            $stmtId->closeCursor();
+                $stmtInsertTx = $pdo->prepare("
+                    INSERT INTO tbl_transaksi (
+                        tanggal, id_pelanggan, total_belanja, nominal_bayar, kembalian,
+                        metode_pembayaran, merchant_order_id, payment_status, stock_processed
+                    ) VALUES (?, ?, 0, 0, 0, 'Duitku POP', ?, 'UNPAID', 0)
+                ");
+                $stmtInsertTx->execute([$tanggal, $id_pelanggan, $merchant_order_id]);
+                $id_transaksi_baru = (int)$pdo->lastInsertId();
 
-            if ($id_transaksi_baru <= 0) {
-                $id_transaksi_baru = (int)$pdo->query("SELECT MAX(id_transaksi) FROM tbl_transaksi")->fetchColumn();
-            }
-
-            // 3. Masukkan item kedua, ketiga, dst. ke tbl_detail_transaksi & kurangi stok masing-masing
-            $total_count = count($validated_items);
-            if ($total_count > 1) {
                 $stmtInsertDetail = $pdo->prepare("
                     INSERT INTO tbl_detail_transaksi (id_transaksi, id_produk, nama_produk, jumlah, harga)
                     VALUES (?, ?, ?, ?, ?)
                 ");
-                $stmtUpdateStok = $pdo->prepare("UPDATE tbl_produk SET stok = stok - ? WHERE id_produk = ?");
-
-                for ($i = 1; $i < $total_count; $i++) {
-                    $other_item = $validated_items[$i];
-                    
-                    // Insert detail transaksi
+                foreach ($validated_items as $item) {
                     $stmtInsertDetail->execute([
                         $id_transaksi_baru,
-                        $other_item['id_produk'],
-                        $other_item['nama_produk'],
-                        $other_item['jumlah'],
-                        $other_item['harga']
+                        $item['id_produk'],
+                        $item['nama_produk'],
+                        $item['jumlah'],
+                        $item['harga']
                     ]);
-                    $stmtInsertDetail->closeCursor();
+                }
+            } else {
+                // Stored procedure creates the transaction and decreases stock for the first item.
+                $first_item = $validated_items[0];
+                $stmtSP = $pdo->prepare("CALL TambahTransaksi(?, ?, ?, ?)");
+                $stmtSP->execute([$tanggal, $id_pelanggan, $first_item['id_produk'], $first_item['jumlah']]);
+                $stmtSP->closeCursor();
 
-                    // Kurangi stok produk
-                    $stmtUpdateStok->execute([
-                        $other_item['jumlah'],
-                        $other_item['id_produk']
-                    ]);
-                    $stmtUpdateStok->closeCursor();
+                $stmtId = $pdo->prepare("SELECT id_transaksi FROM tbl_transaksi WHERE id_pelanggan = ? ORDER BY id_transaksi DESC LIMIT 1");
+                $stmtId->execute([$id_pelanggan]);
+                $id_transaksi_baru = (int)$stmtId->fetchColumn();
+                $stmtId->closeCursor();
+
+                if ($id_transaksi_baru <= 0) {
+                    $id_transaksi_baru = (int)$pdo->query("SELECT MAX(id_transaksi) FROM tbl_transaksi")->fetchColumn();
+                }
+
+                $total_count = count($validated_items);
+                if ($total_count > 1) {
+                    $stmtInsertDetail = $pdo->prepare("
+                        INSERT INTO tbl_detail_transaksi (id_transaksi, id_produk, nama_produk, jumlah, harga)
+                        VALUES (?, ?, ?, ?, ?)
+                    ");
+                    $stmtUpdateStok = $pdo->prepare("UPDATE tbl_produk SET stok = stok - ? WHERE id_produk = ?");
+
+                    for ($i = 1; $i < $total_count; $i++) {
+                        $other_item = $validated_items[$i];
+                        $stmtInsertDetail->execute([
+                            $id_transaksi_baru,
+                            $other_item['id_produk'],
+                            $other_item['nama_produk'],
+                            $other_item['jumlah'],
+                            $other_item['harga']
+                        ]);
+                        $stmtInsertDetail->closeCursor();
+                        $stmtUpdateStok->execute([$other_item['jumlah'], $other_item['id_produk']]);
+                        $stmtUpdateStok->closeCursor();
+                    }
                 }
             }
 
@@ -216,8 +249,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) 
 
             $total_akhir = $setelah_diskon + $nominal_pajak;
 
-            // Jika non-tunai (QRIS / Transfer), nominal bayar otomatis pas dan kembalian 0
-            if ($metode_pembayaran !== 'Tunai') {
+            if ($is_duitku) {
+                $total_akhir = (int)round($total_akhir);
+                if ($total_akhir <= 0) {
+                    throw new Exception("Total pembayaran Duitku harus lebih dari Rp 0.");
+                }
+                $nominal_bayar = 0;
+                $kembalian = 0;
+            } elseif ($metode_pembayaran !== 'Tunai') {
+                // QRIS / transfer lokal are recorded as paid, matching the existing POS flow.
                 $nominal_bayar = $total_akhir;
                 $kembalian = 0;
             } else {
@@ -228,38 +268,103 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']) 
                 $kembalian = max(0, $nominal_bayar - $total_akhir);
             }
 
-            // Update total_belanja transaksi dengan nilai akhir multi-item, metode, dan rincian pembayaran
-            try {
-                $stmtUpdateTx = $pdo->prepare("
-                    UPDATE tbl_transaksi 
-                    SET total_belanja = :total,
-                        nominal_bayar = :bayar,
-                        kembalian = :kembalian,
-                        nominal_diskon = :diskon,
-                        diskon_persen = :diskon_persen,
-                        nominal_pajak = :pajak,
-                        metode_pembayaran = :metode
-                    WHERE id_transaksi = :id
-                ");
-                $stmtUpdateTx->execute([
-                    ':total'         => $total_akhir,
-                    ':bayar'         => $nominal_bayar,
-                    ':kembalian'     => $kembalian,
-                    ':diskon'        => $nominal_diskon,
-                    ':diskon_persen' => $diskon,
-                    ':pajak'         => $nominal_pajak,
-                    ':metode'        => $metode_pembayaran,
-                    ':id'            => $id_transaksi_baru
-                ]);
-                $stmtUpdateTx->closeCursor();
-            } catch (Exception $eUp) {
-                $stmtUpdateTx = $pdo->prepare("UPDATE tbl_transaksi SET total_belanja = ? WHERE id_transaksi = ?");
-                $stmtUpdateTx->execute([$total_akhir, $id_transaksi_baru]);
-                $stmtUpdateTx->closeCursor();
-            }
+            $payment_status = $is_duitku ? 'UNPAID' : 'PAID';
+            $stock_processed = $is_duitku ? 0 : 1;
+            $stmtUpdateTx = $pdo->prepare("
+                UPDATE tbl_transaksi
+                SET total_belanja = :total,
+                    nominal_bayar = :bayar,
+                    kembalian = :kembalian,
+                    nominal_diskon = :diskon,
+                    diskon_persen = :diskon_persen,
+                    nominal_pajak = :pajak,
+                    metode_pembayaran = :metode,
+                    payment_status = :payment_status,
+                    merchant_order_id = COALESCE(:merchant_order_id, merchant_order_id),
+                    stock_processed = :stock_processed,
+                    paid_at = CASE WHEN :payment_status_paid = 'PAID' THEN NOW() ELSE paid_at END
+                WHERE id_transaksi = :id
+            ");
+            $stmtUpdateTx->execute([
+                ':total' => $total_akhir,
+                ':bayar' => $nominal_bayar,
+                ':kembalian' => $kembalian,
+                ':diskon' => $nominal_diskon,
+                ':diskon_persen' => $diskon,
+                ':pajak' => $nominal_pajak,
+                ':metode' => $metode_pembayaran,
+                ':payment_status' => $payment_status,
+                ':merchant_order_id' => $merchant_order_id,
+                ':stock_processed' => $stock_processed,
+                ':payment_status_paid' => $payment_status,
+                ':id' => $id_transaksi_baru,
+            ]);
+            $stmtUpdateTx->closeCursor();
 
             // Commit seluruh operasi multi-item
             $pdo->commit();
+
+            if ($is_duitku) {
+                $fullName = trim($customer['nama_pelanggan']);
+                $nameParts = preg_split('/\s+/', $fullName, 2);
+                $customerDetail = [
+                    'firstName' => $nameParts[0] ?? 'Pelanggan',
+                    'lastName' => $nameParts[1] ?? '',
+                    'email' => $customer_email,
+                    'merchantCustomerId' => (string)$id_pelanggan,
+                ];
+                if ($customer_phone !== '') {
+                    $customerDetail['phoneNumber'] = $customer_phone;
+                }
+
+                try {
+                    $invoiceParams = [
+                        'paymentAmount' => $total_akhir,
+                        'merchantOrderId' => $merchant_order_id,
+                        'productDetails' => 'Transaksi Kasir TokoKu ' . $merchant_order_id,
+                        'additionalParam' => 'tx=' . $id_transaksi_baru,
+                        'merchantUserInfo' => $customer['rfid_uid'] ?? ('member-' . $id_pelanggan),
+                        'paymentMethod' => '',
+                        'customerVaName' => substr($fullName, 0, 20),
+                        'email' => $customer_email,
+                        'itemDetails' => [[
+                            'name' => 'Transaksi Kasir',
+                            'price' => $total_akhir,
+                            'quantity' => 1,
+                        ]],
+                        'customerDetail' => $customerDetail,
+                        'callbackUrl' => duitkuCallbackUrl(),
+                        'returnUrl' => duitkuReturnUrl($merchant_order_id),
+                        'expiryPeriod' => 60,
+                    ];
+                    if ($customer_phone !== '') {
+                        $invoiceParams['phoneNumber'] = $customer_phone;
+                    }
+                    $invoice = duitkuCreateInvoice($invoiceParams);
+                } catch (Exception $invoiceError) {
+                    $failureMessage = 'Gagal membuat pembayaran Duitku: ' . $invoiceError->getMessage();
+                    $stmtFailInvoice = $pdo->prepare("
+                        UPDATE tbl_transaksi
+                        SET payment_status = 'FAILED', payment_result_code = 'CREATE_ERR'
+                        WHERE id_transaksi = ?
+                    ");
+                    $stmtFailInvoice->execute([$id_transaksi_baru]);
+                    throw new Exception($failureMessage, 0, $invoiceError);
+                }
+
+                $stmtSaveInvoice = $pdo->prepare("
+                    UPDATE tbl_transaksi
+                    SET duitku_reference = ?, duitku_payment_url = ?
+                    WHERE id_transaksi = ?
+                ");
+                $stmtSaveInvoice->execute([
+                    $invoice['reference'],
+                    $invoice['paymentUrl'],
+                    $id_transaksi_baru,
+                ]);
+                header('Location: ' . $invoice['paymentUrl']);
+                exit;
+            }
 
             // Alihkan langsung ke nota cetak siap print dengan parameter lengkap
             $redirect_url = "nota.php?id={$id_transaksi_baru}&print=1"
@@ -671,18 +776,14 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <span class="text-[10px] text-primary-container font-semibold" id="labelActiveMethod">Tunai (Cash)</span>
                                 </label>
                                 <input type="hidden" name="metode_pembayaran" id="formMetodePembayaran" value="Tunai">
-                                <div class="grid grid-cols-3 gap-1.5">
+                                <div class="grid grid-cols-2 gap-1.5">
                                     <button type="button" onclick="selectPaymentMethod('Tunai', this)" id="btnMethodTunai" class="pay-method-pill active py-2 px-2 rounded-xl border border-primary-container bg-primary-container/10 text-primary font-bold text-xs flex flex-col items-center justify-center gap-1 transition">
                                         <span class="material-symbols-outlined text-[20px]">payments</span>
                                         <span>Tunai</span>
                                     </button>
-                                    <button type="button" onclick="selectPaymentMethod('QRIS', this)" id="btnMethodQris" class="pay-method-pill py-2 px-2 rounded-xl border border-outline-variant/40 bg-surface-container text-secondary hover:text-on-surface hover:bg-surface-container-high font-medium text-xs flex flex-col items-center justify-center gap-1 transition">
-                                        <span class="material-symbols-outlined text-[20px]">qr_code_2</span>
-                                        <span>QRIS</span>
-                                    </button>
-                                    <button type="button" onclick="selectPaymentMethod('Transfer / Debit', this)" id="btnMethodTransfer" class="pay-method-pill py-2 px-2 rounded-xl border border-outline-variant/40 bg-surface-container text-secondary hover:text-on-surface hover:bg-surface-container-high font-medium text-xs flex flex-col items-center justify-center gap-1 transition">
-                                        <span class="material-symbols-outlined text-[20px]">credit_card</span>
-                                        <span>Debit / Bank</span>
+                                    <button type="button" onclick="selectPaymentMethod('Duitku POP', this)" id="btnMethodDuitku" class="pay-method-pill py-2 px-2 rounded-xl border border-outline-variant/40 bg-surface-container text-secondary hover:text-on-surface hover:bg-surface-container-high font-medium text-xs flex flex-col items-center justify-center gap-1 transition">
+                                        <span class="material-symbols-outlined text-[20px]">language</span>
+                                        <span>Duitku</span>
                                     </button>
                                 </div>
                             </div>
@@ -719,46 +820,26 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 </div>
                             </div>
 
-                            <!-- PANEL 2: QRIS (DIGITAL) -->
-                            <div id="panelQris" class="hidden p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-3 text-center">
-                                <div class="flex items-center justify-between pb-2 border-b border-outline-variant/20 text-xs">
-                                    <span class="font-bold text-on-surface flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-primary-container text-[18px]">qr_code_scanner</span>
-                                        <span>Standar QRIS Nasional</span>
-                                    </span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Auto Match</span>
-                                </div>
-                                <div class="w-32 h-32 mx-auto bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs flex flex-col items-center justify-center">
-                                    <svg viewBox="0 0 100 100" class="w-full h-full text-slate-900 fill-current">
-                                        <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z M40,10 h20 v10 h-20 z M40,35 h10 v20 h-10 z M60,35 h30 v10 h-30 z M70,55 h20 v20 h-20 z M40,65 h15 v25 h-15 z M60,85 h30 v15 h-30 z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-[11px] text-secondary">
-                                    <p class="font-bold text-on-surface">TokoKu POS Retail Engine</p>
-                                    <p class="text-[10px] text-secondary mt-0.5">BCA &bull; GoPay &bull; OVO &bull; Dana &bull; ShopeePay</p>
-                                </div>
-                            </div>
-
-                            <!-- PANEL 3: TRANSFER / DEBIT -->
-                            <div id="panelTransfer" class="hidden p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-2.5 text-xs">
-                                <div class="flex items-center justify-between pb-2 border-b border-outline-variant/20">
-                                    <span class="font-bold text-on-surface flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-primary-container text-[18px]">credit_card</span>
-                                        <span>Mesin EDC & Transfer</span>
-                                    </span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Settlement</span>
-                                </div>
-                                <div class="space-y-1.5 text-[11px]">
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-surface border border-outline-variant/20">
-                                        <span class="font-medium text-secondary">Bank BCA:</span>
-                                        <span class="font-mono font-bold text-on-surface">8820-1928-334</span>
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-surface border border-outline-variant/20">
-                                        <span class="font-medium text-secondary">Bank Mandiri:</span>
-                                        <span class="font-mono font-bold text-on-surface">144-00-192837-1</span>
+                            <div id="panelDuitku" class="hidden p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-3 text-xs">
+                                <div class="flex items-center gap-2 pb-2 border-b border-outline-variant/20">
+                                    <span class="material-symbols-outlined text-primary-container text-[20px]">lock</span>
+                                    <div>
+                                        <p class="font-bold text-on-surface">Pembayaran aman melalui Duitku</p>
+                                        <p class="text-[10px] text-secondary">Pelanggan memilih metode pembayaran di halaman Duitku.</p>
                                     </div>
                                 </div>
-                                <p class="text-[10px] text-secondary text-center">Swipe atau Tap kartu pelanggan pada mesin EDC kasir.</p>
+                                <div>
+                                    <label for="customerEmail" class="text-[11px] font-semibold text-on-surface block mb-1">Email pelanggan <span class="text-error">*</span></label>
+                                    <input type="email" name="customer_email" id="customerEmail" autocomplete="email"
+                                           class="w-full h-9 px-3 rounded-lg bg-surface text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                                           placeholder="nama@email.com">
+                                </div>
+                                <div>
+                                    <label for="customerPhone" class="text-[11px] font-semibold text-on-surface block mb-1">Nomor telepon <span class="text-secondary">(opsional)</span></label>
+                                    <input type="tel" name="customer_phone" id="customerPhone" autocomplete="tel"
+                                           class="w-full h-9 px-3 rounded-lg bg-surface text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                                           placeholder="08xxxxxxxxxx">
+                                </div>
                             </div>
 
                             <!-- Submit Checkout Button -->
@@ -1232,38 +1313,37 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         // Toggle panels
         const panelTunai = document.getElementById('panelTunai');
-        const panelQris = document.getElementById('panelQris');
-        const panelTransfer = document.getElementById('panelTransfer');
+        const panelDuitku = document.getElementById('panelDuitku');
+        const customerEmail = document.getElementById('customerEmail');
         const btnLabel = document.getElementById('btnSubmitLabel');
         const btnIcon = document.getElementById('btnSubmitIcon');
 
         panelTunai.classList.add('hidden');
-        panelQris.classList.add('hidden');
-        panelTransfer.classList.add('hidden');
+        panelDuitku.classList.add('hidden');
+        customerEmail.required = method === 'Duitku POP';
 
         if (method === 'Tunai') {
             panelTunai.classList.remove('hidden');
             btnLabel.innerText = 'Bayar Tunai & Cetak Nota';
             btnIcon.innerText = 'payments';
             calculateKembalian();
-        } else if (method === 'QRIS') {
-            panelQris.classList.remove('hidden');
-            btnLabel.innerText = 'Verifikasi QRIS & Cetak Nota';
-            btnIcon.innerText = 'qr_code_scanner';
-            document.getElementById('inputBayar').value = Math.ceil(grandCalculatedTotal);
-            document.getElementById('txtKembalian').innerText = 'Rp 0 (Pas)';
         } else {
-            panelTransfer.classList.remove('hidden');
-            btnLabel.innerText = 'Konfirmasi Transfer & Cetak Nota';
-            btnIcon.innerText = 'credit_card';
-            document.getElementById('inputBayar').value = Math.ceil(grandCalculatedTotal);
-            document.getElementById('txtKembalian').innerText = 'Rp 0 (Pas)';
+            panelDuitku.classList.remove('hidden');
+            btnLabel.innerText = 'Lanjutkan ke Pembayaran Duitku';
+            btnIcon.innerText = 'open_in_new';
+            document.getElementById('inputBayar').value = 0;
+            document.getElementById('txtKembalian').innerText = 'Dibayar melalui Duitku';
         }
 
         checkFormValidity();
     }
 
     function calculateKembalian() {
+        if (currentPaymentMethod === 'Duitku POP') {
+            document.getElementById('inputBayar').value = 0;
+            document.getElementById('txtKembalian').innerText = 'Dibayar melalui Duitku';
+            return;
+        }
         if (currentPaymentMethod !== 'Tunai') {
             document.getElementById('inputBayar').value = Math.ceil(grandCalculatedTotal);
             const kembalianEl = document.getElementById('txtKembalian');
@@ -1417,8 +1497,15 @@ require_once __DIR__ . '/includes/sidebar.php';
                 const metodeInput = document.getElementById('formMetodePembayaran');
                 const currentMetode = metodeInput ? metodeInput.value : 'Tunai';
 
-                if (currentMetode !== 'Tunai') {
-                    // QRIS & Transfer: Selalu otomatis terisi uang pas
+                if (currentMetode === 'Duitku POP') {
+                    const emailInput = document.getElementById('customerEmail');
+                    if (!emailInput.checkValidity()) {
+                        e.preventDefault();
+                        emailInput.reportValidity();
+                    }
+                    bayarInput.value = 0;
+                } else if (currentMetode !== 'Tunai') {
+                    // QRIS & transfer: selalu otomatis terisi uang pas.
                     bayarInput.value = Math.ceil(grandCalculatedTotal);
                 } else {
                     let bayarVal = parseFloat(bayarInput.value) || 0;

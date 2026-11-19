@@ -10,12 +10,16 @@
  */
 session_start();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/config/duitku.php';
 
 $page_title = 'GopellMart Online Shop';
 $current_page = 'pembeli';
 
 $success_message = null;
 $error_message = null;
+if (empty($_SESSION['checkout_token'])) {
+    $_SESSION['checkout_token'] = bin2hex(random_bytes(16));
+}
 
 // Handle Login / Logout Kartu RFID
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action'])) {
@@ -59,29 +63,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
     // 3. CHECKOUT BELANJA ONLINE (KHUSUS NON-TUNAI)
     elseif ($action === 'checkout_online') {
         $id_pelanggan = (int)($_SESSION['pembeli_id'] ?? 0);
-        $raw_metode   = trim($_POST['metode_pembayaran'] ?? 'QRIS');
         $items_raw    = $_POST['items_json'] ?? '[]';
         $cart_items   = json_decode($items_raw, true);
+        $checkout_token = trim($_POST['checkout_token'] ?? '');
+        $customer_email = trim($_POST['customer_email'] ?? '');
+        $customer_phone = preg_replace('/[^0-9+]/', '', trim($_POST['customer_phone'] ?? ''));
 
-        // Validasi: TIDAK BOLEH TUNAI
-        if (strcasecmp($raw_metode, 'Tunai') === 0) {
-            $error_message = "Pembayaran tunai tidak tersedia untuk belanja online. Harap pilih QRIS atau Transfer Bank.";
-        } elseif ($id_pelanggan <= 0) {
+        if ($id_pelanggan <= 0) {
             $error_message = "Silakan login menggunakan kartu member RFID Anda terlebih dahulu.";
+        } elseif (!filter_var($customer_email, FILTER_VALIDATE_EMAIL)) {
+            $error_message = "Masukkan alamat email yang valid untuk menerima informasi pembayaran.";
         } elseif (empty($cart_items) || !is_array($cart_items)) {
             $error_message = "Keranjang belanja Anda masih kosong. Silakan pilih produk terlebih dahulu.";
+        } elseif ($checkout_token === '' || $checkout_token !== ($_SESSION['checkout_token'] ?? '')) {
+            $error_message = "Permintaan checkout tidak valid atau sudah diproses. Muat ulang halaman dan coba lagi.";
         } else {
-            if (strcasecmp($raw_metode, 'QRIS') === 0) {
-                $metode_pembayaran = 'QRIS';
-            } else {
-                $metode_pembayaran = 'Transfer / Debit';
-            }
-
+            $_SESSION['checkout_token'] = bin2hex(random_bytes(16));
             try {
                 $pdo->beginTransaction();
 
                 $subtotal_kotor = 0;
                 $validated_items = [];
+                $item_details = [];
 
                 foreach ($cart_items as $item) {
                     $item_id  = (int)($item['id_produk'] ?? 0);
@@ -109,6 +112,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
                         'harga'       => (float)$prod['harga'],
                         'subtotal'    => $item_subtotal
                     ];
+                    $item_details[] = [
+                        'name' => $prod['nama_produk'],
+                        'price' => (int) round((float)$prod['harga']),
+                        'quantity' => $item_qty,
+                    ];
                 }
 
                 if (empty($validated_items)) {
@@ -119,63 +127,116 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']))
                 $nominal_pajak = $subtotal_kotor * 0.11;
                 $grand_total   = $subtotal_kotor + $nominal_pajak;
                 $tanggal_order = date('Y-m-d');
+                $grand_total = (int) round($grand_total);
+                $nominal_pajak = (int) round($nominal_pajak);
+                $item_details[] = [
+                    'name' => 'PPN 11%',
+                    'price' => $nominal_pajak,
+                    'quantity' => 1,
+                ];
 
-                // Eksekusi SP TambahTransaksi untuk item pertama
-                $first_item = $validated_items[0];
-                $stmtSP = $pdo->prepare("CALL TambahTransaksi(?, ?, ?, ?)");
-                $stmtSP->execute([$tanggal_order, $id_pelanggan, $first_item['id_produk'], $first_item['jumlah']]);
-                $stmtSP->closeCursor();
+                $merchant_order_id = 'GM-' . date('YmdHis') . '-' . bin2hex(random_bytes(4));
 
-                // Ambil ID transaksi terbaru
-                $stmtId = $pdo->prepare("SELECT id_transaksi FROM tbl_transaksi WHERE id_pelanggan = ? ORDER BY id_transaksi DESC LIMIT 1");
-                $stmtId->execute([$id_pelanggan]);
-                $id_transaksi_baru = (int)$stmtId->fetchColumn();
-                $stmtId->closeCursor();
-
-                if ($id_transaksi_baru <= 0) {
-                    $id_transaksi_baru = (int)$pdo->query("SELECT MAX(id_transaksi) FROM tbl_transaksi")->fetchColumn();
+                $stmtCust = $pdo->prepare("SELECT id_pelanggan, nama_pelanggan, rfid_uid, kota FROM tbl_pelanggan WHERE id_pelanggan = ?");
+                $stmtCust->execute([$id_pelanggan]);
+                $customer = $stmtCust->fetch();
+                $stmtCust->closeCursor();
+                if (!$customer) {
+                    throw new Exception("Data pelanggan tidak ditemukan.");
                 }
 
-                // Tambah item ke-2, ke-3, dst ke tbl_detail_transaksi
-                $total_items = count($validated_items);
-                if ($total_items > 1) {
-                    $stmtInsertD = $pdo->prepare("INSERT INTO tbl_detail_transaksi (id_transaksi, id_produk, nama_produk, jumlah, harga) VALUES (?, ?, ?, ?, ?)");
-                    $stmtUpdateS = $pdo->prepare("UPDATE tbl_produk SET stok = stok - ? WHERE id_produk = ?");
+                $stmtInsertT = $pdo->prepare("
+                    INSERT INTO tbl_transaksi (
+                        tanggal, id_pelanggan, total_belanja, nominal_bayar, kembalian,
+                        nominal_pajak, metode_pembayaran, merchant_order_id, payment_status, stock_processed
+                    ) VALUES (?, ?, ?, 0, 0, ?, 'Duitku POP', ?, 'UNPAID', 0)
+                ");
+                $stmtInsertT->execute([
+                    $tanggal_order,
+                    $id_pelanggan,
+                    $grand_total,
+                    $nominal_pajak,
+                    $merchant_order_id,
+                ]);
+                $id_transaksi_baru = (int)$pdo->lastInsertId();
 
-                    for ($i = 1; $i < $total_items; $i++) {
-                        $other = $validated_items[$i];
-                        $stmtInsertD->execute([$id_transaksi_baru, $other['id_produk'], $other['nama_produk'], $other['jumlah'], $other['harga']]);
-                        $stmtInsertD->closeCursor();
-
-                        $stmtUpdateS->execute([$other['jumlah'], $other['id_produk']]);
-                        $stmtUpdateS->closeCursor();
-                    }
+                $stmtInsertD = $pdo->prepare("
+                    INSERT INTO tbl_detail_transaksi (id_transaksi, id_produk, nama_produk, jumlah, harga)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+                foreach ($validated_items as $item) {
+                    $stmtInsertD->execute([
+                        $id_transaksi_baru,
+                        $item['id_produk'],
+                        $item['nama_produk'],
+                        $item['jumlah'],
+                        $item['harga'],
+                    ]);
                 }
 
-                // Update total belanja, metode pembayaran, pajak
-                $stmtFinal = $pdo->prepare("
-                    UPDATE tbl_transaksi 
-                    SET total_belanja = ?, 
-                        nominal_pajak = ?, 
-                        nominal_bayar = ?, 
-                        kembalian = 0, 
-                        metode_pembayaran = ? 
+                $pdo->commit();
+
+                $fullName = trim($customer['nama_pelanggan']);
+                $nameParts = preg_split('/\s+/', $fullName, 2);
+                $firstName = $nameParts[0] ?? 'Pelanggan';
+                $lastName = $nameParts[1] ?? '';
+                $email = $customer_email;
+
+                $customerDetail = [
+                    'firstName' => $firstName,
+                    'lastName' => $lastName,
+                    'email' => $email,
+                    'merchantCustomerId' => (string)$id_pelanggan,
+                ];
+                if ($customer_phone !== '') {
+                    $customerDetail['phoneNumber'] = $customer_phone;
+                }
+
+                $invoiceParams = [
+                    'paymentAmount' => $grand_total,
+                    'merchantOrderId' => $merchant_order_id,
+                    'productDetails' => 'Belanja Online GopellMart ' . $merchant_order_id,
+                    'additionalParam' => 'tx=' . $id_transaksi_baru,
+                    'merchantUserInfo' => $customer['rfid_uid'] ?? ('member-' . $id_pelanggan),
+                    'paymentMethod' => '',
+                    'customerVaName' => substr($fullName, 0, 20),
+                    'email' => $email,
+                    'itemDetails' => $item_details,
+                    'customerDetail' => $customerDetail,
+                    'callbackUrl' => duitkuCallbackUrl(),
+                    'returnUrl' => duitkuReturnUrl($merchant_order_id),
+                    'expiryPeriod' => 60,
+                ];
+                if ($customer_phone !== '') {
+                    $invoiceParams['phoneNumber'] = $customer_phone;
+                }
+
+                $invoice = duitkuCreateInvoice($invoiceParams);
+
+                $stmtSaveInvoice = $pdo->prepare("
+                    UPDATE tbl_transaksi
+                    SET duitku_reference = ?, duitku_payment_url = ?, duitku_payload = ?
                     WHERE id_transaksi = ?
                 ");
-                $stmtFinal->execute([$grand_total, $nominal_pajak, $grand_total, $metode_pembayaran, $id_transaksi_baru]);
-                $stmtFinal->closeCursor();
+                $stmtSaveInvoice->execute([
+                    $invoice['reference'],
+                    $invoice['paymentUrl'],
+                    json_encode([
+                        'statusCode' => $invoice['statusCode'] ?? null,
+                        'statusMessage' => $invoice['statusMessage'] ?? null,
+                    ], JSON_UNESCAPED_SLASHES),
+                    $id_transaksi_baru,
+                ]);
 
                 // Catat di log
                 try {
                     $stmtLog = $pdo->prepare("INSERT INTO tbl_log (tabel_terkait, aktivitas, keterangan) VALUES ('tbl_transaksi', 'INSERT', ?)");
-                    $stmtLog->execute(["Belanja Online Pembeli via {$metode_pembayaran} (ID Transaksi: {$id_transaksi_baru}, Total: Rp {$grand_total})"]);
+                    $stmtLog->execute(["Belanja Online Pembeli via Duitku POP (Order: {$merchant_order_id}, ID Transaksi: {$id_transaksi_baru}, Total: Rp {$grand_total}, Status: PENDING)"]);
                     $stmtLog->closeCursor();
                 } catch (Exception $eLog) {}
 
-                $pdo->commit();
-
-                // Redirect langsung ke nota digital
-                header("Location: nota.php?id={$id_transaksi_baru}&online=1");
+                unset($_SESSION['checkout_token']);
+                header("Location: " . $invoice['paymentUrl']);
                 exit;
 
             } catch (Exception $e) {
@@ -242,7 +303,8 @@ if (!empty($_SESSION['pembeli_id']) && $pdo) {
 
             // Ambil riwayat belanja pembeli
             $stmtRiw = $pdo->prepare("
-                SELECT id_transaksi, tanggal, total_belanja, metode_pembayaran 
+                SELECT id_transaksi, tanggal, total_belanja, metode_pembayaran,
+                       payment_status, merchant_order_id
                 FROM tbl_transaksi 
                 WHERE id_pelanggan = ? 
                 ORDER BY id_transaksi DESC 
@@ -591,54 +653,29 @@ if ($pdo) {
                     <form method="POST" action="pembeli.php" id="formCheckoutOnline" class="space-y-4">
                         <input type="hidden" name="action" value="checkout_online">
                         <input type="hidden" name="items_json" id="inputItemsJson" value="[]">
-                        <input type="hidden" name="metode_pembayaran" id="inputMetodePembayaran" value="QRIS">
+                        <input type="hidden" name="checkout_token" value="<?= htmlspecialchars($_SESSION['checkout_token']) ?>">
 
-                        <!-- Pilihan Metode Pembayaran (KHUSUS NON-TUNAI) -->
                         <div class="space-y-2">
-                            <label class="block text-xs font-bold text-on-surface">Pilih Metode Pembayaran Non-Tunai:</label>
-                            
-                            <div class="grid grid-cols-2 gap-2">
-                                <button type="button" onclick="selectPayMethodOnline('QRIS', this)" class="pay-btn active py-2.5 px-3 rounded-xl border border-primary-container bg-primary-container/10 text-primary font-bold text-xs flex flex-col items-center justify-center gap-1 transition shadow-2xs">
-                                    <span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
-                                    <span>QRIS Digital</span>
-                                </button>
-                                <button type="button" onclick="selectPayMethodOnline('Transfer / Debit', this)" class="pay-btn py-2.5 px-3 rounded-xl border border-outline-variant/40 bg-surface-container text-secondary hover:text-on-surface font-medium text-xs flex flex-col items-center justify-center gap-1 transition">
-                                    <span class="material-symbols-outlined text-[20px]">account_balance</span>
-                                    <span>Transfer Bank</span>
-                                </button>
-                            </div>
+                            <label for="checkoutEmail" class="block text-xs font-bold text-on-surface">Email untuk informasi pembayaran:</label>
+                            <input type="email" name="customer_email" id="checkoutEmail" required maxlength="255"
+                                   placeholder="nama@email.com"
+                                   class="w-full h-10 px-3 rounded-xl bg-surface text-on-surface text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container">
+                            <label for="checkoutPhone" class="block text-xs font-bold text-on-surface">Nomor telepon (opsional):</label>
+                            <input type="tel" name="customer_phone" id="checkoutPhone" maxlength="30"
+                                   placeholder="08xxxxxxxxxx"
+                                   class="w-full h-10 px-3 rounded-xl bg-surface text-on-surface text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container">
+                        </div>
 
-                            <!-- Peringatan Tunai Dinonaktifkan -->
-                            <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
-                                <span class="material-symbols-outlined text-amber-700 text-[16px] shrink-0 mt-0.5">info</span>
+                        <!-- Pilihan Metode Melalui Duitku POP -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-on-surface">Metode Pembayaran:</label>
+                            <div class="p-3.5 rounded-xl bg-primary-container/10 border border-primary-container/30 flex items-center gap-3">
+                                <span class="material-symbols-outlined text-primary-container text-[24px]">account_balance_wallet</span>
                                 <div>
-                                    <strong class="font-bold">Pembayaran Tunai Tidak Tersedia:</strong> Belanja online hanya melayani metode non-tunai (QRIS &amp; Transfer).
+                                    <strong class="block text-xs text-on-surface">Duitku POP</strong>
+                                    <span class="text-[10px] text-secondary">Pilih metode di halaman Duitku. Biaya tambahan yang ditampilkan Duitku mengikuti metode pembayaran dan tidak ditambahkan lagi oleh toko.</span>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- PANEL PREVIEW QRIS -->
-                        <div id="boxQrisPreview" class="p-4 bg-white rounded-xl border border-slate-200 text-center space-y-2 shadow-2xs">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Standar QRIS Nasional</span>
-                            <div class="w-28 h-28 mx-auto bg-slate-50 p-2 rounded-lg border border-slate-200 flex items-center justify-center">
-                                <svg viewBox="0 0 100 100" class="w-full h-full text-slate-900 fill-current">
-                                    <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z M40,10 h20 v10 h-20 z M40,35 h10 v20 h-10 z M60,35 h30 v10 h-30 z M70,55 h20 v20 h-20 z M40,65 h15 v25 h-15 z M60,85 h30 v15 h-30 z"/>
-                                </svg>
-                            </div>
-                            <p class="text-[11px] font-bold text-slate-700">Scan via BCA &bull; GoPay &bull; OVO &bull; Dana</p>
-                        </div>
-
-                        <!-- PANEL PREVIEW TRANSFER BANK -->
-                        <div id="boxTransferPreview" class="hidden p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 space-y-2 text-xs">
-                            <div class="flex justify-between items-center p-2 rounded-lg bg-surface border border-outline-variant/20">
-                                <span class="font-medium text-secondary">Bank BCA:</span>
-                                <span class="font-mono font-bold text-on-surface">8820-1928-334</span>
-                            </div>
-                            <div class="flex justify-between items-center p-2 rounded-lg bg-surface border border-outline-variant/20">
-                                <span class="font-medium text-secondary">Bank Mandiri:</span>
-                                <span class="font-mono font-bold text-on-surface">144-00-192837-1</span>
-                            </div>
-                            <p class="text-[10px] text-secondary text-center">a.n GopellMart Retail Ponorogo</p>
                         </div>
 
                         <!-- Tombol Checkout -->
@@ -646,7 +683,7 @@ if ($pdo) {
                             <button type="submit" id="btnSubmitOnline" disabled 
                                     class="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-on-primary-fixed-variant disabled:opacity-50 disabled:cursor-not-allowed text-white font-headline font-bold text-xs shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                                 <span class="material-symbols-outlined text-[18px]">verified</span>
-                                <span>Bayar Sekarang &amp; Cetak Nota</span>
+                                <span>Bayar melalui Duitku</span>
                             </button>
                         <?php else: ?>
                             <button type="button" onclick="openLoginModal()"
@@ -754,6 +791,17 @@ if ($pdo) {
                                     <span class="font-mono font-bold text-on-surface">#TRX-<?= str_pad($riw['id_transaksi'], 4, '0', STR_PAD_LEFT) ?></span>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-container/10 text-primary">
                                         <?= htmlspecialchars($riw['metode_pembayaran'] ?? 'QRIS') ?>
+                                    </span>
+                                    <?php
+                                        $payment_status = $riw['payment_status'] ?? 'UNPAID';
+                                        $status_class = $payment_status === 'PAID'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : ($payment_status === 'FAILED'
+                                                ? 'bg-rose-100 text-rose-700'
+                                                : 'bg-amber-100 text-amber-700');
+                                    ?>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold <?= $status_class ?>">
+                                        <?= htmlspecialchars($payment_status) ?>
                                     </span>
                                 </div>
                                 <span class="text-[11px] text-secondary mt-0.5 block"><?= formatTanggal($riw['tanggal']) ?></span>

@@ -127,6 +127,18 @@ function autoSelfHealDatabase(PDO $pdo) {
                 waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB;
 
+            CREATE TABLE IF NOT EXISTS tbl_payment_callback (
+                id_callback INT AUTO_INCREMENT PRIMARY KEY,
+                merchant_order_id VARCHAR(50) NULL,
+                duitku_reference VARCHAR(100) NULL,
+                amount DECIMAL(12,2) NULL,
+                result_code VARCHAR(10) NULL,
+                signature_valid TINYINT(1) NOT NULL DEFAULT 0,
+                payload TEXT NULL,
+                received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_callback_order (merchant_order_id)
+            ) ENGINE=InnoDB;
+
             CREATE TABLE IF NOT EXISTS tbl_user (
                 id_user INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(50) NOT NULL UNIQUE,
@@ -160,6 +172,31 @@ function autoSelfHealDatabase(PDO $pdo) {
             }
             if (!in_array('metode_pembayaran', $existingCols)) {
                 $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN metode_pembayaran VARCHAR(30) NOT NULL DEFAULT 'Tunai'");
+            }
+            if (!in_array('merchant_order_id', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN merchant_order_id VARCHAR(50) NULL");
+                $pdo->exec("CREATE UNIQUE INDEX idx_transaksi_merchant_order ON tbl_transaksi (merchant_order_id)");
+            }
+            if (!in_array('duitku_reference', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN duitku_reference VARCHAR(100) NULL");
+            }
+            if (!in_array('duitku_payment_url', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN duitku_payment_url TEXT NULL");
+            }
+            if (!in_array('payment_status', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID'");
+            }
+            if (!in_array('payment_result_code', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN payment_result_code VARCHAR(10) NULL");
+            }
+            if (!in_array('paid_at', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN paid_at DATETIME NULL");
+            }
+            if (!in_array('duitku_payload', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN duitku_payload TEXT NULL");
+            }
+            if (!in_array('stock_processed', $existingCols)) {
+                $pdo->exec("ALTER TABLE tbl_transaksi ADD COLUMN stock_processed TINYINT(1) NOT NULL DEFAULT 0");
             }
         } catch (Exception $eCols) {
             // Abaikan jika alter dibatasi

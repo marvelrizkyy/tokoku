@@ -50,8 +50,10 @@ try {
             t.tanggal,
             t.total_belanja,
             COALESCE(t.metode_pembayaran, 'Tunai') AS metode_pembayaran,
-            COALESCE(t.bayar_nominal, t.total_belanja) AS bayar_nominal,
-            COALESCE(t.kembalian_nominal, 0) AS kembalian_nominal,
+            COALESCE(t.nominal_bayar, t.total_belanja) AS bayar_nominal,
+            COALESCE(t.kembalian, 0) AS kembalian_nominal,
+            COALESCE(t.payment_status, 'PAID') AS payment_status,
+            t.merchant_order_id,
             p.id_pelanggan,
             p.nama_pelanggan,
             p.rfid_uid,
@@ -269,10 +271,17 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                 echo '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"><span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>QRIS</span>';
                                             } elseif ($m === 'transfer' || strpos($m, 'transfer') !== false) {
                                                 echo '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200"><span class="w-1.5 h-1.5 rounded-full bg-purple-600"></span>Transfer</span>';
+                                            } elseif (strpos($m, 'duitku') !== false) {
+                                                echo '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200"><span class="w-1.5 h-1.5 rounded-full bg-orange-600"></span>Duitku POP</span>';
                                             } else {
                                                 echo '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Tunai</span>';
                                             }
                                         ?>
+                                        <?php if (($t['payment_status'] ?? 'PAID') !== 'PAID'): ?>
+                                            <span class="ml-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                <?= htmlspecialchars($t['payment_status']) ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
 
                                     <!-- Total Belanja -->

@@ -79,7 +79,9 @@ if ($pdo) {
                 $diskon_persen     = isset($_GET['diskon_persen']) && is_numeric($_GET['diskon_persen']) ? (float)$_GET['diskon_persen'] : (float)($transaksi['diskon_persen'] ?? 0);
                 
                 $raw_metode        = !empty($_GET['metode']) ? trim($_GET['metode']) : (!empty($transaksi['metode_pembayaran']) ? trim($transaksi['metode_pembayaran']) : 'Tunai');
-                if (strcasecmp($raw_metode, 'QRIS') === 0) {
+                if (!empty($transaksi['merchant_order_id']) || strcasecmp($raw_metode, 'Duitku POP') === 0) {
+                    $metode_pembayaran = 'Duitku POP';
+                } elseif (strcasecmp($raw_metode, 'QRIS') === 0) {
                     $metode_pembayaran = 'QRIS';
                 } elseif (stripos($raw_metode, 'transfer') !== false || stripos($raw_metode, 'debit') !== false) {
                     $metode_pembayaran = 'Transfer / Debit';
@@ -283,7 +285,7 @@ if ($pdo) {
                 </div>
                 <div class="flex items-center justify-between pt-1 border-t border-slate-100">
                     <span class="text-slate-500 font-semibold">Metode Bayar:</span>
-                    <span class="font-bold text-[11px] <?= ($metode_pembayaran === 'QRIS') ? 'text-primary font-mono' : (($metode_pembayaran === 'Transfer / Debit') ? 'text-blue-700 font-mono' : 'text-slate-900') ?>">
+                    <span class="font-bold text-[11px] <?= in_array($metode_pembayaran, ['QRIS', 'Duitku POP'], true) ? 'text-primary font-mono' : (($metode_pembayaran === 'Transfer / Debit') ? 'text-blue-700 font-mono' : 'text-slate-900') ?>">
                         <?= htmlspecialchars(strtoupper($metode_pembayaran)) ?>
                     </span>
                 </div>
@@ -372,6 +374,27 @@ if ($pdo) {
                             <span>Ref / NMID:</span>
                             <span class="font-mono font-medium">QRIS-<?= str_pad($transaksi['id_transaksi'], 4, '0', STR_PAD_LEFT) ?>-<?= date('ymd') ?></span>
                         </div>
+                    <?php elseif ($metode_pembayaran === 'Duitku POP'): ?>
+                        <div class="flex items-center justify-between text-slate-800">
+                            <span class="font-bold flex items-center gap-1.5 text-primary">
+                                <span class="material-symbols-outlined text-[18px]">language</span>
+                                <span>Bayar (Duitku):</span>
+                            </span>
+                            <span class="font-mono-num font-bold text-slate-900 text-xs"><?= formatRupiah($total_belanja) ?></span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-600">
+                            <span>Status Pembayaran:</span>
+                            <span class="font-bold text-emerald-700 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                <span>LUNAS</span>
+                            </span>
+                        </div>
+                        <?php if (!empty($transaksi['duitku_reference'])): ?>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-200/60">
+                                <span>Referensi Duitku:</span>
+                                <span class="font-mono font-medium"><?= htmlspecialchars($transaksi['duitku_reference']) ?></span>
+                            </div>
+                        <?php endif; ?>
                     <?php elseif ($metode_pembayaran === 'Transfer / Debit'): ?>
                         <div class="flex items-center justify-between text-slate-800">
                             <span class="font-bold flex items-center gap-1.5 text-primary">
